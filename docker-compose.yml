@@ -1,0 +1,17 @@
+services:
+  n8n:
+    image: n8nio/n8n:2.18.0
+    container_name: n8n_eduagent
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Bogota
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      # - WEBHOOK_URL=http://localhost:5678/ # Opcional si se utiliza tunnel externo como Ngrok más adelante
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    command: start

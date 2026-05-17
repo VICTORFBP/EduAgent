@@ -1,0 +1,162 @@
+{
+  "name": "EduAgent - Evaluación Híbrida (Vision)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evaluacion",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e1",
+      "name": "Webhook",
+      "position": [
+        -200,
+        120
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "url": "={{$json.body.archivo_url}}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "e2",
+      "name": "DownloadFile",
+      "position": [
+        20,
+        120
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "e3",
+      "name": "ChatOpenAI",
+      "position": [
+        240,
+        320
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza la evaluación adjunta del estudiante en el área de {{$node[\"Webhook\"].json.body.area}}. \nTipo de evaluación: {{$node[\"Webhook\"].json.body.tipo}}.\n\nSi es 'estandarizada', identifica las respuestas marcadas y califica de 0 a 5.\nSi es 'abierta', evalúa los procedimientos y la calidad de las respuestas.\n\nRetorna un JSON con:\n1. nota: un número de 0.0 a 5.0.\n2. retroalimentacion: un párrafo motivador y constructivo.\n3. procesado_correctamente: true.\n\nResponde SOLO con el JSON.",
+        "options": {
+          "systemMessage": "Eres un docente experto en evaluación pedagógica. Tu objetivo es calificar con precisión y brindar retroalimentación humana y constructiva."
+        }
+      },
+      "id": "e4",
+      "name": "VisionAgent",
+      "position": [
+        350,
+        120
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "evaluaciones",
+        "updateKey": "id",
+        "fieldsToUpdate": {
+          "values": [
+            {
+              "column": "nota",
+              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).nota}}"
+            },
+            {
+              "column": "retroalimentacion",
+              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).retroalimentacion}}"
+            },
+            {
+              "column": "procesado_correctamente",
+              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).procesado_correctamente}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5",
+      "name": "SupabaseUpdate",
+      "position": [
+        600,
+        120
+      ],
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "DownloadFile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DownloadFile": {
+      "main": [
+        [
+          {
+            "node": "VisionAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatOpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "VisionAgent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VisionAgent": {
+      "main": [
+        [
+          {
+            "node": "SupabaseUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

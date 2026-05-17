@@ -1,0 +1,270 @@
+{
+  "name": "EduAgent - Planeación Curricular (RAG)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "planeacion",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "n1",
+      "name": "Webhook",
+      "position": [
+        -200,
+        120
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "planeacion-webhook-id"
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "=Genera una planeación para el área de {{$json.body.area}}, grados {{$json.body.grados.join(', ')}}, tema: {{$json.body.tema}}. Duración: {{$json.body.duracion}} horas. Recursos: {{$json.body.recursos}}.",
+        "options": {
+          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva. Tu tarea es generar una planeación curricular para un aula multigrado.\n\nUtiliza la herramienta 'buscar_documentos' para encontrar los DBA (Derechos Básicos de Aprendizaje) y estándares del MEN relevantes para el área y grados solicitados.\n\nLa planeación debe estar estrictamente en formato JSON y contener:\n1. objetivo: Un objetivo de aprendizaje claro.\n2. dba_citado: El texto del DBA que se está trabajando.\n3. indicadores: Una lista de objetos {grado: number, indicador: string} con indicadores específicos por grado.\n4. actividades: Un objeto con {apertura: string, desarrollo: string, cierre: string}.\n5. diferenciacion: Estrategias para manejar los diferentes niveles en el aula multigrado.\n6. criterios_evaluacion: Cómo se medirá el éxito.\n7. estandar_men: El estándar del MEN que fundamenta la planeación.\n\nAsegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
+        }
+      },
+      "id": "n2",
+      "name": "AIAgent",
+      "position": [
+        200,
+        120
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "n3",
+      "name": "ChatOpenAI",
+      "position": [
+        100,
+        320
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "buscar_documentos",
+        "description": "Herramienta de búsqueda en documentos curriculares (DBA y Estándares). Úsala para alinear la planeación con el MEN."
+      },
+      "id": "n4",
+      "name": "VectorStoreTool",
+      "position": [
+        400,
+        320
+      ],
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "tableName": "document_chunks",
+        "options": {}
+      },
+      "id": "n5",
+      "name": "SupabaseVector",
+      "position": [
+        300,
+        500
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "n6",
+      "name": "Embeddings",
+      "position": [
+        100,
+        500
+      ],
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "planeaciones",
+        "dataToSave": "fields",
+        "fieldsToSave": {
+          "values": [
+            {
+              "column": "docente_id",
+              "value": "={{$node[\"Webhook\"].json.body.docente_id}}"
+            },
+            {
+              "column": "area",
+              "value": "={{$node[\"Webhook\"].json.body.area}}"
+            },
+            {
+              "column": "grados",
+              "value": "={{$node[\"Webhook\"].json.body.grados}}"
+            },
+            {
+              "column": "tema",
+              "value": "={{$node[\"Webhook\"].json.body.tema}}"
+            },
+            {
+              "column": "contenido_generado",
+              "value": "={{JSON.parse($node[\"AIAgent\"].json.output)}}"
+            },
+            {
+              "column": "agente_usado",
+              "value": "GPT-4o-Mini + RAG"
+            },
+            {
+              "column": "dba_referenciados",
+              "value": "={{ [JSON.parse($node[\"AIAgent\"].json.output).dba_citado] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n7",
+      "name": "SupabaseInsert",
+      "position": [
+        650,
+        120
+      ],
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "n8",
+      "name": "ChatOpenAITool",
+      "position": [
+        500,
+        500
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AIAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AIAgent": {
+      "main": [
+        [
+          {
+            "node": "SupabaseInsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatOpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AIAgent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VectorStoreTool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AIAgent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupabaseVector": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "VectorStoreTool",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "SupabaseVector",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatOpenAITool": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "VectorStoreTool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

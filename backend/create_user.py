@@ -1,0 +1,17 @@
+import os
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+load_dotenv()
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_SERVICE_KEY")
+supabase: Client = create_client(url, key)
+
+user = supabase.auth.admin.create_user({
+    "email": "test@eduagent.com",
+    "password": "Password123!",
+    "email_confirm": True
+})
+
+print(f"User created: {user}")

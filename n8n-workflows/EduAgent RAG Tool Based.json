@@ -1,0 +1,219 @@
+{
+  "name": "EduAgent RAG Tool Based",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-rag-tool",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "n1",
+      "name": "Webhook",
+      "position": [
+        -80,
+        128
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "d020ba94-e7b1-466f-8455-3b34382361e2"
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "={{$json.body.pregunta}}",
+        "options": {
+          "systemMessage": "Eres EduAgent, un asistente pedagógico experto y amable diseñado para ayudar a los estudiantes.\n\nTus principales directrices son:\n1. Responde de forma clara, didáctica y estructurada.\n2. Utiliza tu herramienta 'buscar_documentos' para recuperar información del conocimiento pedagógico del curso siempre que se te haga una pregunta relacionada al contenido.\n3. Si el usuario te hace una pregunta que no está en los documentos, indícale amablemente que no tienes esa información y sugiérele preguntar al profesor o consultar los materiales del curso.\n4. Mantén un tono motivador y empático. Usa ejemplos si ayudan a explicar un concepto complejo.\n5. No inventes información ni alucines datos. Basa tus respuestas estrictamente en la información que recuperas de la base de datos de documentos."
+        }
+      },
+      "id": "n2",
+      "name": "AIAgent",
+      "position": [
+        304,
+        112
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "n3",
+      "name": "ChatOpenAIAgent",
+      "position": [
+        208,
+        304
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "buscar_documentos",
+        "description": "Herramienta de busqueda en documentos pedagógicos. Úsala para responder cualquier pregunta."
+      },
+      "id": "n4",
+      "name": "VectorStoreTool",
+      "position": [
+        576,
+        256
+      ],
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "n5",
+      "name": "ChatOpenAITool",
+      "position": [
+        816,
+        448
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableName": "document_chunks",
+        "options": {}
+      },
+      "id": "n6",
+      "name": "Supabase",
+      "position": [
+        448,
+        448
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "n7",
+      "name": "Embeddings",
+      "position": [
+        224,
+        544
+      ],
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "ChatOpenAIAgent": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "AIAgent",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "ChatOpenAITool": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "VectorStoreTool",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "index": 0,
+            "node": "Supabase",
+            "type": "ai_embedding"
+          }
+        ]
+      ]
+    },
+    "Supabase": {
+      "ai_vectorStore": [
+        [
+          {
+            "index": 0,
+            "node": "VectorStoreTool",
+            "type": "ai_vectorStore"
+          }
+        ]
+      ]
+    },
+    "VectorStoreTool": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "AIAgent",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "AIAgent",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "37231711-a9a7-4923-9f8b-74e2acb47703",
+  "meta": {
+    "instanceId": "f29435a1134461f297aa53d92003c7090fac44478a405c2d561928a4dafb61d3"
+  },
+  "id": "AGwphgrEFj5ySedy",
+  "tags": []
+}
