@@ -79,6 +79,7 @@ class N8nService:
         self,
         pregunta: str,
         docente_id: str,
+        session_id: str | None = None,
         area: str | None = None,
         grado: int | None = None,
     ) -> dict:
@@ -86,6 +87,7 @@ class N8nService:
         payload = {
             "pregunta": pregunta,
             "docente_id": docente_id,
+            "session_id": session_id,
             "area": area,
             "grado": grado,
         }

@@ -76,7 +76,16 @@
       "parameters": {
         "dataType": "binary",
         "loader": "pdfLoader",
-        "options": {}
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "documento_id",
+                "value": "={{ $('Webhook').first().json.body.documento_id }}"
+              }
+            ]
+          }
+        }
       },
       "id": "5547f604-bd87-40de-8775-45bc33823379",
       "name": "Default Data Loader",
@@ -99,6 +108,44 @@
       "position": [
         144,
         256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/callback/vectorizacion-completada",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "your_shared_secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documento_id\": \"{{ $('Webhook').first().json.body.documento_id }}\",\n  \"chunks_count\": {{ $('Supabase Vector Store').all().length }},\n  \"success\": true\n}",
+        "options": {}
+      },
+      "id": "3c0214c1-195d-4792-9c52-9f16b65c0e05",
+      "name": "Notificar FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1152,
+        -96
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "636bdb8c-1c07-4b09-9ca9-8d2502c58506",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -96
       ]
     }
   ],
@@ -158,6 +205,28 @@
           }
         ]
       ]
+    },
+    "Supabase Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Notificar FastAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -165,7 +234,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "a4fa2c42-44bb-41b5-a5d0-508b6c2047c0",
+  "versionId": "c0c90920-1108-4d9e-aecd-f9bb2ca6c414",
   "meta": {
     "instanceId": "f29435a1134461f297aa53d92003c7090fac44478a405c2d561928a4dafb61d3"
   },

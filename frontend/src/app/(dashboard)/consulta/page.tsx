@@ -360,7 +360,7 @@ export default function ConsultaPage() {
       const data = await apiPost<{
         id?: string; content?: string; output?: string;
         sources?: ChatSource[]; timestamp?: string;
-      }>("/consulta/", { pregunta: question }, token);
+      }>("/consulta/", { pregunta: question, session_id: activeSessionId }, token);
 
       const assistantMsg: ChatMessage = {
         id: data.id ?? `m-${Date.now() + 1}`,

@@ -14,6 +14,7 @@ router = APIRouter()
 
 class ConsultaRequest(BaseModel):
     pregunta: str = Field(..., min_length=3, description="Pregunta del docente")
+    session_id: str | None = Field(None, description="ID de la sesión de chat")
     area: str | None = Field(None, description="Filtro por área")
     grado: int | None = Field(None, ge=1, le=5, description="Filtro por grado")
 
@@ -65,6 +66,7 @@ async def consulta_rag(
         raw = await n8n_service.trigger_consulta(
             pregunta=request.pregunta,
             docente_id=current_user["id"],
+            session_id=request.session_id,
             area=request.area,
             grado=request.grado,
         )

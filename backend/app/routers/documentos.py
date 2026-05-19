@@ -14,6 +14,7 @@ from app.services.supabase_service import (
 )
 from app.services.n8n_service import n8n_service
 from app.services.storage_service import storage_service, ALLOWED_DOCUMENT_MIMES
+from app.services.pdf_service import compress_pdf
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,6 +74,8 @@ async def upload_documento(
         )
 
     file_bytes = await archivo.read()
+    if content_type == "application/pdf":
+        file_bytes = compress_pdf(file_bytes)
 
     # Enforce file size limit for docentes
     if not is_admin:
@@ -167,6 +170,8 @@ async def upload_documentos_batch(
             continue
 
         file_bytes = await archivo.read()
+        if content_type == "application/pdf":
+            file_bytes = compress_pdf(file_bytes)
 
         if not is_admin:
             size_mb = len(file_bytes) / (1024 * 1024)

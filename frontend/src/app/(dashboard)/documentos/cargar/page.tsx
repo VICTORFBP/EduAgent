@@ -28,6 +28,7 @@ import { useDocumentos } from "@/hooks/useDocumentos";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
+import { optimizeFile } from "@/lib/compression";
 
 export default function CargarDocumentoPage() {
   const [nombre, setNombre] = useState("");
@@ -40,6 +41,7 @@ export default function CargarDocumentoPage() {
   
   const { uploadDocumento, isLoading, error } = useDocumentos();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   useEffect(() => {
     async function checkRole() {
@@ -57,16 +59,21 @@ export default function CargarDocumentoPage() {
     if (files.length === 0 || !nombre) return;
 
     try {
+      setIsOptimizing(true);
       let currentProgress = 0;
       const progressPerFile = 100 / files.length;
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        
+        // Optimizar el archivo (comprime JPG/PNG, deja intacto PDF)
+        const optimizedFile = await optimizeFile(file);
+        
         const formData = new FormData();
         // Append index to name if multiple files to keep them distinct
         const finalName = files.length > 1 ? `${nombre} - Parte ${i + 1}` : nombre;
         formData.append("nombre", finalName);
-        formData.append("archivo", file);
+        formData.append("archivo", optimizedFile);
         if (area) formData.append("area", area);
         if (grado) formData.append("grado", grado);
 
@@ -77,11 +84,13 @@ export default function CargarDocumentoPage() {
       }
       
       setProgress(100);
+      setIsOptimizing(false);
       setIsDone(true);
       toast.success(files.length > 1 ? `${files.length} documentos cargados` : "Documento cargado correctamente");
     } catch (err) {
       toast.error("Error al cargar los documentos");
       setProgress(0);
+      setIsOptimizing(false);
     }
   };
 
@@ -154,22 +163,22 @@ export default function CargarDocumentoPage() {
 
           {/* File upload */}
           <div className="space-y-2">
-            <Label>Archivos PDF</Label>
+            <Label>Archivos PDF / Imágenes</Label>
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf"
+              accept=".pdf, .jpg, .jpeg, .png"
               multiple
               onChange={(e) => setFiles(Array.from(e.target.files || []))}
               className="hidden"
             />
             <div
-              onClick={() => !isLoading && !isDone && fileRef.current?.click()}
+              onClick={() => !isLoading && !isOptimizing && !isDone && fileRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
                 files.length > 0 
                   ? "border-primary/50 bg-primary/5" 
                   : "border-white/10 hover:border-primary/30 hover:bg-primary/5"
-              } ${isLoading || isDone ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+              } ${(isLoading || isOptimizing) || isDone ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
             >
               {files.length > 0 ? (
                 <div className="flex flex-col items-center gap-3">
@@ -201,10 +210,10 @@ export default function CargarDocumentoPage() {
             </div>
           </div>
 
-          {isLoading && (
+          {(isLoading || isOptimizing) && (
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Subiendo {files.length > 1 ? "documentos" : "documento"}...</span>
+                <span>{isOptimizing && !isLoading ? "Optimizando..." : `Subiendo ${files.length > 1 ? "documentos" : "documento"}...`}</span>
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
@@ -249,15 +258,15 @@ export default function CargarDocumentoPage() {
           ) : (
             <Button
               onClick={handleUpload}
-              disabled={files.length === 0 || !nombre || isLoading}
+              disabled={files.length === 0 || !nombre || (isLoading || isOptimizing)}
               className="w-full h-12 gradient-primary text-white font-medium shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
             >
-              {isLoading ? (
+              {(isLoading || isOptimizing) ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               ) : (
                 <Upload className="w-5 h-5 mr-2" />
               )}
-              {isLoading ? "Cargando..." : "Cargar Documento(s)"}
+              {(isLoading || isOptimizing) ? "Procesando..." : "Cargar Documento(s)"}
             </Button>
           )}
         </CardContent>

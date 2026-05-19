@@ -213,6 +213,7 @@ class SupabaseService:
             response = (
                 self.client.table("document_chunks")
                 .update({"documento_id": documento_id})
+                .eq("metadata->>documento_id", documento_id)
                 .is_("documento_id", "null")
                 .execute()
             )
