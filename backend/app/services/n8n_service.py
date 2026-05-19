@@ -57,19 +57,21 @@ class N8nService:
 
     async def trigger_evaluacion(
         self,
+        evaluacion_id: str,
         estudiante_id: str,
         docente_id: str,
         area: str,
         tipo: str,
-        archivo_path: str,
+        archivo_url: str,
     ) -> dict:
         """Trigger the evaluación processing workflow in n8n."""
         payload = {
+            "evaluacion_id": evaluacion_id,
             "estudiante_id": estudiante_id,
             "docente_id": docente_id,
             "area": area,
             "tipo": tipo,
-            "archivo_path": archivo_path,
+            "archivo_url": archivo_url,
         }
         return await self._call_webhook(settings.n8n_webhook_evaluacion, payload)
 

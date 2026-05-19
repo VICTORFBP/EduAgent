@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.routers import auth, planeacion, evaluacion, documentos, consulta, dashboard, admin
+from app.routers import auth, planeacion, evaluacion, documentos, consulta, dashboard, admin, callback
 
 settings = get_settings()
 
@@ -11,9 +11,9 @@ app = FastAPI(
     title="EduAgent API",
     description=(
         "API Gateway para el Ecosistema de Gestión Pedagógica Inteligente "
-        "con Agentes RAG — Sede Escuela Rural Mixta El Crucero"
+        "con Agentes RAG — Multi-Sede"
     ),
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -35,13 +35,14 @@ app.include_router(evaluacion.router, prefix="/evaluacion", tags=["Evaluación"]
 app.include_router(documentos.router, prefix="/documentos", tags=["Documentos"])
 app.include_router(consulta.router, prefix="/consulta", tags=["Consulta RAG"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(callback.router, prefix="/callback", tags=["Callbacks n8n"])
 
 
 @app.get("/", tags=["Health"])
 async def root():
     return {
         "service": "EduAgent API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "status": "ok",
         "docs": "/docs",
     }

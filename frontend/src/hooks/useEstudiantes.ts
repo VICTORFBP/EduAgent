@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiGet } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 export interface Estudiante {
   id: string;
@@ -12,6 +12,7 @@ export function useEstudiantes() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   const fetchEstudiantes = async () => {
     try {

@@ -11,8 +11,9 @@ import {
   CheckCircle,
   AlertCircle,
   Filter,
+  Loader2,
 } from "lucide-react";
-import { MOCK_EVALUACIONES } from "@/lib/mock-data";
+import { useEvaluaciones } from "@/hooks/useEvaluaciones";
 import { AREA_COLORS } from "@/lib/types";
 import Link from "next/link";
 import { useState } from "react";
@@ -33,8 +34,9 @@ function getNotaColor(nota: number | null): string {
 
 export default function EvaluacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { evaluaciones, isLoading } = useEvaluaciones();
 
-  const filtered = MOCK_EVALUACIONES.filter(
+  const filtered = evaluaciones.filter(
     (e) =>
       (e.estudiante_nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.area.toLowerCase().includes(searchTerm.toLowerCase())
@@ -46,7 +48,7 @@ export default function EvaluacionPage() {
         <div>
           <h2 className="text-xl font-bold">Evaluaciones</h2>
           <p className="text-sm text-muted-foreground">
-            {MOCK_EVALUACIONES.length} evaluaciones procesadas
+            {evaluaciones.length} evaluaciones procesadas
           </p>
         </div>
         <Link href="/evaluacion/nueva">
@@ -72,66 +74,86 @@ export default function EvaluacionPage() {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {filtered.map((ev, i) => (
-          <Card
-            key={ev.id}
-            className="glass-card border-white/5 hover:border-white/10 transition-all animate-slide-up"
-            style={{ animationDelay: `${(i + 1) * 80}ms` }}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-xl shrink-0 ${ev.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                    {ev.procesado_correctamente ? (
-                      <CheckCircle className="w-4 h-4 text-emerald-500" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-red-500" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{ev.estudiante_nombre}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge className={`${AREA_COLORS[ev.area] || "bg-muted"} border-0 text-[10px]`}>
-                        {ev.area}
-                      </Badge>
-                      <Badge variant="outline" className="border-white/10 text-[10px]">
-                        {ev.tipo}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{formatDate(ev.created_at)}</span>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Cargando evaluaciones...</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {filtered.map((ev, i) => (
+              <Card
+                key={ev.id}
+                className="glass-card border-white/5 hover:border-white/10 transition-all animate-slide-up"
+                style={{ animationDelay: `${(i + 1) * 80}ms` }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`p-2 rounded-xl shrink-0 ${ev.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                        {ev.procesado_correctamente ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{ev.estudiante_nombre || "Estudiante"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge className={`${AREA_COLORS[ev.area] || "bg-muted"} border-0 text-[10px]`}>
+                            {ev.area}
+                          </Badge>
+                          <Badge variant="outline" className="border-white/10 text-[10px]">
+                            {ev.tipo}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{formatDate(ev.created_at)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      {ev.procesado_correctamente && ev.nota !== null && ev.nota !== undefined ? (
+                        <p className={`text-2xl font-bold ${getNotaColor(Number(ev.nota))}`}>
+                          {Number(ev.nota).toFixed(1)}
+                        </p>
+                      ) : ev.procesado_correctamente ? (
+                        <Badge variant="secondary" className="text-xs">Sin nota</Badge>
+                      ) : (
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                            </span>
+                            <span className="text-xs text-amber-500 font-medium">Procesando</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">Gemini Vision</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div className="text-right shrink-0 ml-3">
-                  {ev.nota !== null ? (
-                    <p className={`text-2xl font-bold ${getNotaColor(ev.nota)}`}>
-                      {ev.nota.toFixed(1)}
+                  {ev.retroalimentacion && (
+                    <p className="text-xs text-muted-foreground mt-3 pl-11 line-clamp-2">
+                      {ev.retroalimentacion}
                     </p>
-                  ) : (
-                    <p className="text-sm text-red-400">Error</p>
                   )}
-                </div>
-              </div>
-              {ev.retroalimentacion && (
-                <p className="text-xs text-muted-foreground mt-3 pl-11 line-clamp-2">
-                  {ev.retroalimentacion}
-                </p>
-              )}
-              {ev.error_ocr && (
-                <p className="text-xs text-red-400 mt-3 pl-11">
-                  ⚠️ {ev.error_ocr}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  {ev.error_ocr && (
+                    <p className="text-xs text-red-400 mt-3 pl-11">
+                      ⚠️ {ev.error_ocr}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {filtered.length === 0 && (
-        <div className="text-center py-12 space-y-3 animate-fade-in">
-          <ClipboardCheck className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-          <p className="text-muted-foreground">No se encontraron evaluaciones</p>
-        </div>
+          {filtered.length === 0 && (
+            <div className="text-center py-12 space-y-3 animate-fade-in">
+              <ClipboardCheck className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+              <p className="text-muted-foreground">No se encontraron evaluaciones</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

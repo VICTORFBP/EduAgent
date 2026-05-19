@@ -33,7 +33,7 @@ export default function CargarDocumentoPage() {
   const [nombre, setNombre] = useState("");
   const [area, setArea] = useState("");
   const [grado, setGrado] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState(0);
   const [isDone, setIsDone] = useState(false);
   const [rol, setRol] = useState<string>("docente");
@@ -54,33 +54,43 @@ export default function CargarDocumentoPage() {
   }, []);
 
   const handleUpload = async () => {
-    if (!file || !nombre) return;
-
-    const formData = new FormData();
-    formData.append("nombre", nombre);
-    formData.append("archivo", file);
-    if (area) formData.append("area", area);
-    if (grado) formData.append("grado", grado);
+    if (files.length === 0 || !nombre) return;
 
     try {
-      // Fake progress for UI feel
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => (prev >= 90 ? prev : prev + 10));
-      }, 300);
+      let currentProgress = 0;
+      const progressPerFile = 100 / files.length;
 
-      await uploadDocumento(formData);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        // Append index to name if multiple files to keep them distinct
+        const finalName = files.length > 1 ? `${nombre} - Parte ${i + 1}` : nombre;
+        formData.append("nombre", finalName);
+        formData.append("archivo", file);
+        if (area) formData.append("area", area);
+        if (grado) formData.append("grado", grado);
+
+        await uploadDocumento(formData);
+        
+        currentProgress += progressPerFile;
+        setProgress(Math.min(99, Math.round(currentProgress)));
+      }
       
-      clearInterval(progressInterval);
       setProgress(100);
       setIsDone(true);
-      toast.success("Documento cargado correctamente");
+      toast.success(files.length > 1 ? `${files.length} documentos cargados` : "Documento cargado correctamente");
     } catch (err) {
-      toast.error("Error al cargar el documento");
+      toast.error("Error al cargar los documentos");
       setProgress(0);
     }
   };
 
   const isAdmin = rol === "admin";
+
+  const removeFile = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-2xl mx-auto">
@@ -97,13 +107,13 @@ export default function CargarDocumentoPage() {
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             {isAdmin 
-              ? "Sube un documento oficial del Ministerio (ej. DBAs, Estándares). Estará disponible para todos los docentes en sus planeaciones."
-              : "Sube un PDF curricular o material de clase para que el sistema lo vectorice y lo incluya en tus consultas."}
+              ? "Sube documentos oficiales del Ministerio (ej. DBAs, Estándares). Estarán disponibles para todos."
+              : "Sube PDFs curriculares o material de clase para que el sistema lo vectorice y lo incluya en tus consultas."}
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
-            <Label>Nombre del documento</Label>
+            <Label>Nombre base (se numerarán si son varios)</Label>
             <Input
               placeholder="Ej: Guía Escuela Nueva - Matemáticas"
               value={nombre}
@@ -144,35 +154,48 @@ export default function CargarDocumentoPage() {
 
           {/* File upload */}
           <div className="space-y-2">
-            <Label>Archivo PDF</Label>
+            <Label>Archivos PDF</Label>
             <input
               ref={fileRef}
               type="file"
               accept=".pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files || []))}
               className="hidden"
             />
             <div
               onClick={() => !isLoading && !isDone && fileRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                file 
+                files.length > 0 
                   ? "border-primary/50 bg-primary/5" 
                   : "border-white/10 hover:border-primary/30 hover:bg-primary/5"
               } ${isLoading || isDone ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
             >
-              {file ? (
-                <div className="flex flex-col items-center gap-2">
+              {files.length > 0 ? (
+                <div className="flex flex-col items-center gap-3">
                   <FileText className="w-10 h-10 text-primary" />
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+                  <p className="text-sm font-medium">{files.length} archivo(s) seleccionado(s)</p>
+                  <div className="w-full max-w-sm space-y-2 text-left">
+                    {files.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs bg-black/20 p-2 rounded-lg border border-white/5">
+                        <span className="truncate pr-2">{file.name}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                          {!isLoading && !isDone && (
+                            <button onClick={(e) => removeFile(idx, e)} className="text-red-400 hover:text-red-300">
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <Upload className="w-10 h-10 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">Arrastra o haz clic para subir</p>
-                  <p className="text-xs text-muted-foreground/60">Solo archivos PDF • Máx 20MB</p>
+                  <p className="text-xs text-muted-foreground/60">Selecciona uno o varios PDFs • Máx 20MB/archivo</p>
                 </div>
               )}
             </div>
@@ -181,7 +204,7 @@ export default function CargarDocumentoPage() {
           {isLoading && (
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Subiendo documento...</span>
+                <span>Subiendo {files.length > 1 ? "documentos" : "documento"}...</span>
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
@@ -203,18 +226,18 @@ export default function CargarDocumentoPage() {
           {isDone ? (
             <div className="text-center p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 animate-fade-in">
               <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-              <p className="font-medium text-sm">Documento cargado exitosamente</p>
+              <p className="font-medium text-sm">Carga exitosa</p>
               <p className="text-xs text-muted-foreground mt-1">
                 El procesamiento y vectorización han comenzado.
               </p>
               <div className="flex gap-2 mt-4 justify-center">
                 <Button variant="outline" size="sm" className="border-white/10" onClick={() => {
-                  setFile(null);
+                  setFiles([]);
                   setNombre("");
                   setIsDone(false);
                   setProgress(0);
                 }}>
-                  Subir otro
+                  Subir más
                 </Button>
                 <Link href="/documentos">
                   <Button size="sm" className="gradient-primary text-white">
@@ -226,7 +249,7 @@ export default function CargarDocumentoPage() {
           ) : (
             <Button
               onClick={handleUpload}
-              disabled={!file || !nombre || isLoading}
+              disabled={files.length === 0 || !nombre || isLoading}
               className="w-full h-12 gradient-primary text-white font-medium shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
             >
               {isLoading ? (
@@ -234,7 +257,7 @@ export default function CargarDocumentoPage() {
               ) : (
                 <Upload className="w-5 h-5 mr-2" />
               )}
-              {isLoading ? "Cargando..." : "Cargar Documento"}
+              {isLoading ? "Cargando..." : "Cargar Documento(s)"}
             </Button>
           )}
         </CardContent>

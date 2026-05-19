@@ -90,7 +90,7 @@ export default function DocumentosPage() {
               </h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {oficiales.map((doc) => (
-                  <Card key={doc.id} className="glass-card border-white/5 hover:border-white/10 transition-all">
+                  <Card key={doc.id} className="glass-card border-white/5 hover:border-white/10 transition-all relative group">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="p-2 rounded-xl bg-emerald-500/10 shrink-0">
@@ -118,17 +118,28 @@ export default function DocumentosPage() {
                           </div>
                           <p className="text-xs text-muted-foreground mt-1.5">{formatDate(doc.created_at)}</p>
                         </div>
-                        {!doc.vectorizado && (
+                        <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!doc.vectorizado && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReprocesar(doc.id)}
+                              className="text-primary hover:bg-primary/10"
+                              title="Reprocesar vectorización"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleReprocesar(doc.id)}
-                            className="text-primary hover:bg-primary/10"
-                            title="Reprocesar vectorización"
+                            onClick={() => handleDelete(doc.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Eliminar documento"
                           >
-                            <RefreshCw className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     n8n_api_key: str = ""
     n8n_webhook_ingesta: str = "http://localhost:5678/webhook/ingesta-pdf"
     n8n_webhook_planeacion: str = "http://localhost:5678/webhook/planeacion"
-    n8n_webhook_evaluacion: str = "http://localhost:5678/webhook/evaluacion"
+    n8n_webhook_evaluacion: str = "http://localhost:5678/webhook/evaluacion-vision"
     n8n_webhook_consulta: str = "http://localhost:5678/webhook/consulta"
     n8n_webhook_secret: str = ""
 

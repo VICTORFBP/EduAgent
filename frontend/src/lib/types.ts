@@ -1,12 +1,25 @@
 /* ===== EduAgent — TypeScript Types ===== */
 
+// ---- Sedes ----
+export interface Sede {
+  id: string;
+  nombre: string;
+  municipio: string | null;
+  descripcion: string | null;
+  activa: boolean;
+  created_at: string;
+}
+
 // ---- Auth & Docentes ----
 export interface Docente {
   id: string;
   nombre: string;
   email: string;
+  rol: "admin" | "docente";
   grados_asignados: number[];
   areas_asignadas: string[];
+  sede_id: string | null;
+  sedes?: { nombre: string; municipio: string | null } | null;
   created_at: string;
 }
 
@@ -83,6 +96,8 @@ export interface Estudiante {
   nombre: string;
   grado: number;
   docente_id: string;
+  sede_id: string | null;
+  sedes?: { nombre: string } | null;
   created_at: string;
   evaluaciones_count?: number;
   promedio_notas?: number;

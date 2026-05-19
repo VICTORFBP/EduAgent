@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { useEstudiantes } from "@/hooks/useEstudiantes";
 import { useEvaluaciones } from "@/hooks/useEvaluaciones";
+import { AREAS } from "@/lib/types";
 
 export default function NuevaEvaluacionPage() {
   const { estudiantes } = useEstudiantes();

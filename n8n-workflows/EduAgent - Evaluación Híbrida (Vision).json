@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "evaluacion",
+        "path": "evaluacion-vision",
         "responseMode": "lastNode",
         "options": {}
       },
@@ -65,11 +65,49 @@
       "id": "e4",
       "name": "VisionAgent",
       "position": [
-        350,
+        300,
         120
       ],
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "id",
+              "value": "={{$node[\"Webhook\"].json.body.evaluacion_id}}"
+            },
+            {
+              "name": "retroalimentacion",
+              "value": "={{JSON.parse($json.text).retroalimentacion}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "nota",
+              "value": "={{JSON.parse($json.text).nota}}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "procesado_correctamente",
+              "value": "={{JSON.parse($json.text).procesado_correctamente}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e6",
+      "name": "SetProperties",
+      "position": [
+        480,
+        120
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1
     },
     {
       "parameters": {
@@ -80,15 +118,15 @@
           "values": [
             {
               "column": "nota",
-              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).nota}}"
+              "value": "={{$json.nota}}"
             },
             {
               "column": "retroalimentacion",
-              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).retroalimentacion}}"
+              "value": "={{$json.retroalimentacion}}"
             },
             {
               "column": "procesado_correctamente",
-              "value": "={{JSON.parse($node[\"VisionAgent\"].json.text).procesado_correctamente}}"
+              "value": "={{$json.procesado_correctamente}}"
             }
           ]
         },
@@ -97,7 +135,7 @@
       "id": "e5",
       "name": "SupabaseUpdate",
       "position": [
-        600,
+        660,
         120
       ],
       "type": "n8n-nodes-base.supabase",
@@ -145,6 +183,17 @@
       ]
     },
     "VisionAgent": {
+      "main": [
+        [
+          {
+            "node": "SetProperties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetProperties": {
       "main": [
         [
           {
