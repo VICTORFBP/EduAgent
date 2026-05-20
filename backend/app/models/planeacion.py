@@ -52,8 +52,21 @@ class PlaneacionResponse(BaseModel):
     created_at: str
 
 
+class PlaneacionListResponse(BaseModel):
+    id: str
+    docente_id: str
+    area: str
+    grados: list[int]
+    tema: str
+    validada_docente: bool
+    correcciones: Optional[str] = None
+    created_at: str
+    agente_usado: str
+
+
 class PlaneacionValidateRequest(BaseModel):
     """Request to validate or correct a planeación."""
     validada_docente: bool
     correcciones: Optional[str] = None
     contenido_generado: Optional[ContenidoPlaneacion] = None
+

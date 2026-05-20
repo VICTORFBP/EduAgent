@@ -19,64 +19,55 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=Genera una actividad evaluativa (taller/cuestionario/guía de ejercicios) basada en la siguiente planeación didáctica:\n\nÁrea: {{$json.body.area}}\nGrados: {{$json.body.grados.join(', ')}}\nTema: {{$json.body.tema}}\nPlaneación:\n{{JSON.stringify($json.body.contenido_generado)}}\n\nEl taller debe estar adaptado para un aula multigrado. Divide las actividades explícitamente para cada grado seleccionado.\nIncluye ejercicios prácticos, operaciones matemáticas u otras tareas específicas de escritura/análisis.\n\nRetorna un JSON que contenga:\n1. titulo: El título de la actividad.\n2. instrucciones: Instrucciones generales para el estudiante.\n3. contenido_grados: Un objeto con llaves para cada grado (ej. \"4\", \"5\") y el valor como el taller de ese grado formateado en Markdown.\n4. clave_respuestas: Las respuestas esperadas y criterios de evaluación para el docente en Markdown.\n\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown ni texto adicional.",
-        "options": {
-          "systemMessage": "Eres un docente experto en diseño de material educativo y evaluación formativa para escuelas rurales de aula multigrado (modelo Escuela Nueva). Creas talleres didácticos y prácticos con ejercicios y operaciones adaptados al nivel cognitivo de cada grado, facilitando la evaluación posterior."
-        }
+        "workflowId": "spnDlvMJdmA1Cdu9"
       },
-      "id": "a2",
-      "name": "ActivityAgent",
+      "id": "exec_m",
+      "name": "ExecMath",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [
-        100,
+        200,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": "ubDxiebseBzaDyD6"
+      },
+      "id": "exec_l",
+      "name": "ExecLang",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        200,
         120
-      ],
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.4
+      ]
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "options": {
-          "temperature": 0.3
-        }
+        "workflowId": "EzYiDzu8IYTvv56L"
       },
-      "id": "a3",
-      "name": "ChatOpenAI",
+      "id": "exec_g",
+      "name": "ExecGen",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [
-        0,
-        320
-      ],
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.1,
-      "credentials": {
-        "openAiApi": {
-          "id": "Jowod5NKcwNTE2fL",
-          "name": "OpenAI account"
-        }
-      }
+        200,
+        260
+      ]
     },
     {
       "parameters": {
-        "keepOnlySet": true,
-        "values": {
-          "string": [
-            {
-              "name": "id",
-              "value": "={{$('Webhook').first().json.body.planeacion_id}}"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "for (const item of $input.all()) {\n  const data = item.json;\n  item.json = { actividad: data, id: $(\"Webhook\").first().json.body.planeacion_id };\n}\nreturn $input.all();"
       },
       "id": "a5",
       "name": "SetProperties",
       "position": [
-        300,
+        400,
         120
       ],
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -98,7 +89,7 @@
           "fieldValues": [
             {
               "fieldId": "actividad_generada",
-              "fieldValue": "={{JSON.parse($('ActivityAgent').first().json.text)}}"
+              "fieldValue": "={{ $json.actividad }}"
             }
           ]
         },
@@ -107,7 +98,7 @@
       "id": "a4",
       "name": "SupabaseUpdate",
       "position": [
-        500,
+        600,
         120
       ],
       "type": "n8n-nodes-base.supabase",
@@ -118,6 +109,48 @@
           "name": "Supabase account"
         }
       }
+    },
+    {
+      "id": "if_math",
+      "name": "IfMath",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.area}}",
+              "operation": "contains",
+              "value2": "Matemáticas"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if_lang",
+      "name": "IfLang",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        100,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.area}}",
+              "operation": "contains",
+              "value2": "Lenguaje"
+            }
+          ]
+        }
+      }
     }
   ],
   "connections": {
@@ -125,25 +158,36 @@
       "main": [
         [
           {
-            "node": "ActivityAgent",
+            "node": "IfMath",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ChatOpenAI": {
-      "ai_languageModel": [
+    "ExecMath": {
+      "main": [
         [
           {
-            "node": "ActivityAgent",
-            "type": "ai_languageModel",
+            "node": "SetProperties",
+            "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ActivityAgent": {
+    "ExecLang": {
+      "main": [
+        [
+          {
+            "node": "SetProperties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecGen": {
       "main": [
         [
           {
@@ -159,6 +203,42 @@
         [
           {
             "node": "SupabaseUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfMath": {
+      "main": [
+        [
+          {
+            "node": "ExecMath",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IfLang",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfLang": {
+      "main": [
+        [
+          {
+            "node": "ExecLang",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ExecGen",
             "type": "main",
             "index": 0
           }

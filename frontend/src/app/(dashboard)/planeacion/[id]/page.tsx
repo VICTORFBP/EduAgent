@@ -228,7 +228,7 @@ export default function PlaneacionDetailPage({
       const gradeContent = plan.actividad_generada.contenido_grados?.[g] || plan.actividad_generada.contenido_grados?.[g.toString()];
       if (gradeContent) {
         printContent += `
-          <div style="page-break-after: always; margin-bottom: 40px;">
+          <div class="grade-container">
             <span style="font-weight: bold; background: #f3f4f6; color: #1f2937; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; border: 1px solid #e5e7eb;">Grado ${g}</span>
             <div class="markdown-container" style="margin-top: 16px; margin-bottom: 32px; font-size: 14px;">
               <script type="text/markdown">${gradeContent}</script>
@@ -274,7 +274,43 @@ export default function PlaneacionDetailPage({
               .header-info div { display: flex; flex-direction: column; }
               .header-info label { font-weight: 600; color: #6b7280; }
               .header-info span { color: #111827; }
-              blockquote { border-left: 4px solid #d1d5db; padding-left: 12px; margin-left: 0; italic: true; color: #4b5563; }
+              blockquote { border-left: 4px solid #d1d5db; padding-left: 12px; margin-left: 0; font-style: italic; color: #4b5563; }
+              
+              /* Estilo de Tablas (Cajas de Respuesta) */
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 16px 0;
+                page-break-inside: avoid;
+              }
+              th, td {
+                border: 1px solid #9ca3af;
+                padding: 12px;
+                text-align: left;
+                font-size: 13px;
+              }
+              th {
+                background-color: #f3f4f6;
+                font-weight: 600;
+                color: #1f2937;
+              }
+              td {
+                color: #374151;
+              }
+              
+              /* Evitar saltos de página incómodos */
+              p, li, tr, blockquote {
+                page-break-inside: avoid;
+              }
+              
+              .grade-container {
+                page-break-after: always;
+                margin-bottom: 40px;
+              }
+              .grade-container:last-child {
+                page-break-after: avoid;
+              }
+              
               @media print {
                 body { margin: 20px; }
                 @page { margin: 1.5cm; }
@@ -307,11 +343,28 @@ export default function PlaneacionDetailPage({
             ${printContent}
             
             <script>
-              // Procesar Markdown
+              // Enmascarar LaTeX para proteger los backslashes del parser Markdown
+              var latexPlaceholders = [];
               document.querySelectorAll(".markdown-container").forEach(function(el) {
                 var scriptEl = el.querySelector("script");
                 if (scriptEl) {
-                  el.innerHTML = marked.parse(scriptEl.textContent || scriptEl.innerText);
+                  var rawText = scriptEl.textContent || scriptEl.innerText;
+                  
+                  // Guardar expresiones LaTeX y reemplazarlas temporalmente
+                  var processedText = rawText.replace(/\\\\?\\[([\\s\\S]*?)\\\\?\\]|\\\\?\\(([\\s\\S]*?)\\\\?\\)/g, function(match) {
+                    latexPlaceholders.push(match);
+                    return '@@LATEX_PLACEHOLDER_' + (latexPlaceholders.length - 1) + '@@';
+                  });
+                  
+                  // Parsear Markdown
+                  var html = marked.parse(processedText);
+                  
+                  // Restaurar expresiones LaTeX
+                  latexPlaceholders.forEach(function(placeholder, index) {
+                    html = html.replace('@@LATEX_PLACEHOLDER_' + index + '@@', placeholder);
+                  });
+                  
+                  el.innerHTML = html;
                 }
               });
               
@@ -853,7 +906,17 @@ export default function PlaneacionDetailPage({
                   : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
               }`}
             >
-              Vista Estudiante
+              Vista Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab("preview")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === "preview"
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
+              }`}
+            >
+              Vista Previa Impresión
             </button>
             <button
               onClick={() => setActiveTab("teacher")}
@@ -905,7 +968,10 @@ export default function PlaneacionDetailPage({
                               li: ({node, ...props}) => <li className="text-sm my-1" {...props} />,
                               code: ({node, ...props}) => <code className="bg-black/35 px-1.5 py-0.5 rounded text-xs font-mono text-primary" {...props} />,
                               pre: ({node, ...props}) => <pre className="bg-black/60 p-4 rounded-lg border border-white/5 overflow-x-auto my-3 text-xs font-mono" {...props} />,
-                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/40 pl-4 italic my-3 text-muted-foreground" {...props} />
+                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/40 pl-4 italic my-3 text-muted-foreground" {...props} />,
+                              table: ({node, ...props}) => <table className="w-full border-collapse border border-white/10 my-4" {...props} />,
+                              th: ({node, ...props}) => <th className="border border-white/10 bg-white/5 p-3 text-left font-semibold text-xs text-primary" {...props} />,
+                              td: ({node, ...props}) => <td className="border border-white/10 p-3 text-left text-sm text-neutral-300" {...props} />
                             }}
                           >
                             {formatLatex(gradeContent)}
@@ -914,6 +980,68 @@ export default function PlaneacionDetailPage({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            ) : activeTab === "preview" ? (
+              <div className="flex justify-center bg-neutral-950 p-4 rounded-xl border border-white/5">
+                <div className="bg-white text-black p-8 sm:p-12 shadow-2xl w-full max-w-[800px] min-h-[1056px] font-sans">
+                  <h1 className="text-2xl font-bold border-b-2 border-gray-300 pb-2 mb-6 text-center text-gray-900">
+                    {plan.actividad_generada?.titulo || "Actividad Evaluativa"}
+                  </h1>
+                  
+                  <div className="flex justify-between border border-gray-300 p-4 rounded-lg mb-8 text-sm">
+                    <div className="flex flex-col gap-3">
+                      <div><span className="font-semibold text-gray-600 mr-2">Estudiante:</span> <span>_________________________________</span></div>
+                      <div><span className="font-semibold text-gray-600 mr-2">Fecha:</span> <span>____________________</span></div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <div><span className="font-semibold text-gray-600 mr-2">Área:</span> <span className="text-gray-900">{plan.area}</span></div>
+                      <div><span className="font-semibold text-gray-600 mr-2">Tema:</span> <span className="text-gray-900">{plan.tema}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="italic text-gray-700 mb-8 text-[14.5px]">
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {formatLatex(plan.actividad_generada?.instrucciones || "")}
+                    </ReactMarkdown>
+                  </div>
+
+                  <div className="space-y-12">
+                    {plan.grados?.map((g: number) => {
+                      const gradeContent = plan.actividad_generada?.contenido_grados?.[g] || plan.actividad_generada?.contenido_grados?.[g.toString()];
+                      if (!gradeContent) return null;
+                      return (
+                        <div key={g} className="space-y-4">
+                          <div className="inline-block px-3 py-1 bg-gray-100 text-gray-800 font-bold text-xs uppercase rounded border border-gray-200">
+                            Grado {g}
+                          </div>
+                          <div className="text-[14.5px] text-gray-900 leading-relaxed print-preview-markdown">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-6 mb-3 text-black" {...props} />,
+                                h2: ({node, ...props}) => <h2 className="text-lg font-semibold mt-5 mb-2 text-gray-800 border-b border-gray-100 pb-1" {...props} />,
+                                h3: ({node, ...props}) => <h3 className="text-base font-medium mt-4 mb-2 text-gray-800" {...props} />,
+                                p: ({node, ...props}) => <p className="mb-4 last:mb-0" {...props} />,
+                                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-4 space-y-1" {...props} />,
+                                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-1" {...props} />,
+                                li: ({node, ...props}) => <li className="my-1" {...props} />,
+                                code: ({node, ...props}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />,
+                                pre: ({node, ...props}) => <pre className="bg-gray-50 p-4 rounded border border-gray-200 overflow-x-auto my-4 text-sm font-mono text-gray-800" {...props} />,
+                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600" {...props} />,
+                                table: ({node, ...props}) => <table className="w-full border-collapse border border-gray-400 my-4" {...props} />,
+                                th: ({node, ...props}) => <th className="border border-gray-400 bg-gray-100 p-3 text-left font-semibold text-xs text-gray-800" {...props} />,
+                                td: ({node, ...props}) => <td className="border border-gray-400 p-3 text-left text-[13.5px] text-gray-900 leading-normal" {...props} />
+                              }}
+                            >
+                              {formatLatex(gradeContent)}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -939,7 +1067,10 @@ export default function PlaneacionDetailPage({
                       ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-muted-foreground" {...props} />,
                       li: ({node, ...props}) => <li className="text-sm my-1" {...props} />,
                       code: ({node, ...props}) => <code className="bg-black/35 px-1.5 py-0.5 rounded text-xs font-mono text-emerald-400" {...props} />,
-                      pre: ({node, ...props}) => <pre className="bg-black/60 p-4 rounded-lg border border-white/5 overflow-x-auto my-3 text-xs font-mono" {...props} />
+                      pre: ({node, ...props}) => <pre className="bg-black/60 p-4 rounded-lg border border-white/5 overflow-x-auto my-3 text-xs font-mono" {...props} />,
+                      table: ({node, ...props}) => <table className="w-full border-collapse border border-white/10 my-4" {...props} />,
+                      th: ({node, ...props}) => <th className="border border-white/10 bg-white/5 p-3 text-left font-semibold text-xs text-emerald-400" {...props} />,
+                      td: ({node, ...props}) => <td className="border border-white/10 p-3 text-left text-sm text-neutral-300" {...props} />
                     }}
                   >
                     {formatLatex(plan.actividad_generada?.clave_respuestas)}
@@ -952,7 +1083,11 @@ export default function PlaneacionDetailPage({
           {/* Footer del diálogo */}
           <div className="flex justify-between items-center border-t border-white/10 pt-4 flex-shrink-0">
             <span className="text-xs text-muted-foreground">
-              {activeTab === "student" ? "⚠️ Imprime este taller para entregarlo a tus estudiantes." : "👀 Guarda el solucionario de forma confidencial."}
+              {activeTab === "teacher" 
+                ? "👀 Guarda el solucionario de forma confidencial." 
+                : activeTab === "preview" 
+                ? "🖨️ Así se verá tu documento al imprimirlo."
+                : "⚠️ Esta vista es para revisar el contenido cómodamente en pantalla."}
             </span>
             <div className="flex gap-2">
               <Button
@@ -962,7 +1097,7 @@ export default function PlaneacionDetailPage({
               >
                 Cerrar
               </Button>
-              {activeTab === "student" && (
+              {activeTab !== "teacher" && (
                 <>
                   <Button
                     variant="outline"

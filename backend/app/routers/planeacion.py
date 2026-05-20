@@ -6,6 +6,7 @@ from app.models.planeacion import (
     PlaneacionCreateRequest,
     PlaneacionResponse,
     PlaneacionValidateRequest,
+    PlaneacionListResponse,
 )
 from app.services.supabase_service import supabase_service
 from app.services.n8n_service import n8n_service
@@ -56,7 +57,7 @@ async def create_planeacion(
         raise HTTPException(status_code=502, detail=f"Error al generar planeación: {str(e)}")
 
 
-@router.get("/")
+@router.get("/", response_model=list[PlaneacionListResponse])
 async def list_planeaciones(current_user: dict = Depends(get_current_user)):
     """List all planeaciones for the current docente."""
     return await supabase_service.get_planeaciones(current_user["id"])

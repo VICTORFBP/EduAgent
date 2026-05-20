@@ -43,7 +43,7 @@ class SupabaseService:
             return []
         response = (
             self.client.table("planeaciones")
-            .select("*")
+            .select("id, docente_id, area, grados, tema, validada_docente, correcciones, created_at, agente_usado")
             .eq("docente_id", docente_id)
             .order("created_at", desc=True)
             .execute()
