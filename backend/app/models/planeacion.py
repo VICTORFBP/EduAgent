@@ -11,6 +11,8 @@ class PlaneacionCreateRequest(BaseModel):
     tema: str = Field(..., min_length=3, description="Tema de la planeación")
     duracion: int = Field(2, ge=1, le=8, description="Duración en horas")
     recursos: str = Field("", description="Recursos disponibles")
+    parent_plan_id: Optional[str] = Field(None, description="ID de la planeación padre para refinamiento")
+    feedback: Optional[str] = Field(None, description="Comentarios de retroalimentación para refinamiento")
 
 
 class IndicadorLogro(BaseModel):
@@ -46,6 +48,7 @@ class PlaneacionResponse(BaseModel):
     tokens_consumidos: int
     validada_docente: bool
     correcciones: Optional[str] = None
+    actividad_generada: Optional[dict] = None
     created_at: str
 
 
@@ -53,3 +56,4 @@ class PlaneacionValidateRequest(BaseModel):
     """Request to validate or correct a planeación."""
     validada_docente: bool
     correcciones: Optional[str] = None
+    contenido_generado: Optional[ContenidoPlaneacion] = None

@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "planeacion",
+        "path": "planeacion-rag",
         "responseMode": "lastNode",
         "options": {
           "rawBody": true
@@ -24,9 +24,9 @@
       "parameters": {
         "agent": "toolsAgent",
         "promptType": "define",
-        "text": "=Genera una planeación para el área de {{$json.body.area}}, grados {{$json.body.grados.join(', ')}}, tema: {{$json.body.tema}}. Duración: {{$json.body.duracion}} horas. Recursos: {{$json.body.recursos}}.",
+        "text": "={{$json.body.feedback ? \"Refina la planeación curricular anterior basándose en los comentarios del docente.\\n\\nPlaneación anterior:\\n\" + JSON.stringify($json.body.contenido_anterior) + \"\\n\\nComentarios del docente (feedback):\\n\" + $json.body.feedback : \"Genera una planeación para el área de \" + $json.body.area + \", grados \" + $json.body.grados.join(', ') + \", tema: \" + $json.body.tema + \". Duración: \" + $json.body.duracion + \" horas. Recursos: \" + $json.body.recursos + \".\"}}",
         "options": {
-          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva. Tu tarea es generar una planeación curricular para un aula multigrado.\n\nUtiliza la herramienta 'buscar_documentos' para encontrar los DBA (Derechos Básicos de Aprendizaje) y estándares del MEN relevantes para el área y grados solicitados.\n\nLa planeación debe estar estrictamente en formato JSON y contener:\n1. objetivo: Un objetivo de aprendizaje claro.\n2. dba_citado: El texto del DBA que se está trabajando.\n3. indicadores: Una lista de objetos {grado: number, indicador: string} con indicadores específicos por grado.\n4. actividades: Un objeto con {apertura: string, desarrollo: string, cierre: string}.\n5. diferenciacion: Estrategias para manejar los diferentes niveles en el aula multigrado.\n6. criterios_evaluacion: Cómo se medirá el éxito.\n7. estandar_men: El estándar del MEN que fundamenta la planeación.\n\nAsegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
+          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva. Tu tarea es generar o refinar una planeación curricular para un aula multigrado.\n\nUtiliza la herramienta 'buscar_documentos' para encontrar los DBA (Derechos Básicos de Aprendizaje) y estándares del MEN relevantes para el área y grados solicitados.\n\nSi se te pide refinar una planeación anterior según la retroalimentación del docente, mantén la estructura general y el contenido que sea correcto, pero modifica, corrige o amplía las secciones necesarias para atender puntualmente la retroalimentación provista por el docente.\n\nLa planeación debe estar estrictamente en formato JSON y contener:\n1. objetivo: Un objetivo de aprendizaje claro.\n2. dba_citado: El texto del DBA que se está trabajando.\n3. indicadores: Una lista de objetos {grado: number, indicador: string} con indicadores específicos por grado.\n4. actividades: Un objeto con {apertura: string, desarrollo: string, cierre: string}.\n5. diferenciacion: Estrategias para manejar los diferentes niveles en el aula multigrado.\n6. criterios_evaluacion: Cómo se medirá el éxito.\n7. estandar_men: El estándar del MEN que fundamenta la planeación.\n\nAsegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
         }
       },
       "id": "n2",
@@ -114,36 +114,36 @@
     {
       "parameters": {
         "tableId": "planeaciones",
-        "dataToSave": "fields",
-        "fieldsToSave": {
-          "values": [
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
             {
-              "column": "docente_id",
-              "value": "={{$node[\"Webhook\"].json.body.docente_id}}"
+              "fieldId": "docente_id",
+              "fieldValue": "={{$('Webhook').first().json.body.docente_id}}"
             },
             {
-              "column": "area",
-              "value": "={{$node[\"Webhook\"].json.body.area}}"
+              "fieldId": "area",
+              "fieldValue": "={{$('Webhook').first().json.body.area}}"
             },
             {
-              "column": "grados",
-              "value": "={{$node[\"Webhook\"].json.body.grados}}"
+              "fieldId": "grados",
+              "fieldValue": "={{$('Webhook').first().json.body.grados}}"
             },
             {
-              "column": "tema",
-              "value": "={{$node[\"Webhook\"].json.body.tema}}"
+              "fieldId": "tema",
+              "fieldValue": "={{$('Webhook').first().json.body.tema}}"
             },
             {
-              "column": "contenido_generado",
-              "value": "={{JSON.parse($node[\"AIAgent\"].json.output)}}"
+              "fieldId": "contenido_generado",
+              "fieldValue": "={{JSON.parse($('AIAgent').first().json.output)}}"
             },
             {
-              "column": "agente_usado",
-              "value": "GPT-4o-Mini + RAG"
+              "fieldId": "agente_usado",
+              "fieldValue": "GPT-4o-Mini + RAG"
             },
             {
-              "column": "dba_referenciados",
-              "value": "={{ [JSON.parse($node[\"AIAgent\"].json.output).dba_citado] }}"
+              "fieldId": "dba_referenciados",
+              "fieldValue": "={{ [JSON.parse($('AIAgent').first().json.output).dba_citado] }}"
             }
           ]
         },

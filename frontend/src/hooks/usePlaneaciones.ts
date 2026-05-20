@@ -45,7 +45,9 @@ export function usePlaneaciones() {
     grados: number[], 
     tema: string, 
     duracion: number, 
-    recursos: string 
+    recursos: string,
+    parent_plan_id?: string,
+    feedback?: string
   }) => {
     setIsLoading(true);
     setError(null);
@@ -63,7 +65,7 @@ export function usePlaneaciones() {
     }
   };
 
-  const validatePlaneacion = async (id: string, validada: boolean, correcciones?: string) => {
+  const validatePlaneacion = async (id: string, validada: boolean, correcciones?: string, contenidoGenerado?: any) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -71,12 +73,29 @@ export function usePlaneaciones() {
       const token = session?.access_token || undefined;
       const result = await apiPatch<any>(`/planeacion/${id}`, { 
         validada_docente: validada, 
-        correcciones 
+        correcciones,
+        contenido_generado: contenidoGenerado
       }, token);
       setPlaneaciones((prev) => prev.map((p) => (p.id === id ? result : p)));
       return result;
     } catch (err: any) {
       setError(err.message || "Error al validar planeación");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateActividad = async (id: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || undefined;
+      const result = await apiPost<any>(`/planeacion/${id}/actividad`, {}, token);
+      return result;
+    } catch (err: any) {
+      setError(err.message || "Error al generar actividad");
       throw err;
     } finally {
       setIsLoading(false);
@@ -91,5 +110,7 @@ export function usePlaneaciones() {
     fetchPlaneacion,
     generatePlaneacion,
     validatePlaneacion,
+    generateActividad,
   };
 }
+

@@ -2,6 +2,8 @@
 
 import logging
 import mimetypes
+import re
+import unicodedata
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,19 @@ def _detect_content_type(filename: str, provided: str | None = None) -> str:
     return guessed or "application/octet-stream"
 
 
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to be safe for Supabase Storage (ASCII only, no special characters, spaces replaced by underscores)."""
+    # Decompose unicode characters to separate base characters and diacritics
+    normalized = unicodedata.normalize("NFKD", filename)
+    # Encode to ASCII, ignoring diacritics and non-ASCII characters, then decode back to string
+    ascii_str = normalized.encode("ascii", "ignore").decode("ascii")
+    # Replace non-alphanumeric/dot/underscore/hyphen characters with underscore
+    sanitized = re.sub(r"[^a-zA-Z0-9._-]", "_", ascii_str)
+    # Collapse multiple consecutive underscores
+    sanitized = re.sub(r"_+", "_", sanitized)
+    return sanitized
+
+
 class StorageService:
     """Handles file upload/download to Supabase Storage."""
 
@@ -65,8 +80,9 @@ class StorageService:
         content_type: str | None = None,
     ) -> str:
         """Upload a document (PDF or image) to Supabase Storage."""
-        ct = _detect_content_type(filename, content_type)
-        path = f"{docente_id}/{filename}"
+        sanitized_filename = sanitize_filename(filename)
+        ct = _detect_content_type(sanitized_filename, content_type)
+        path = f"{docente_id}/{sanitized_filename}"
         if self.client:
             self.client.storage.from_(BUCKET_DOCUMENTOS).upload(
                 path, file_bytes, {"content-type": ct}
@@ -81,8 +97,9 @@ class StorageService:
         content_type: str | None = None,
     ) -> str:
         """Upload an evaluation image/PDF to Supabase Storage."""
-        ct = _detect_content_type(filename, content_type)
-        path = f"{docente_id}/{filename}"
+        sanitized_filename = sanitize_filename(filename)
+        ct = _detect_content_type(sanitized_filename, content_type)
+        path = f"{docente_id}/{sanitized_filename}"
         if self.client:
             self.client.storage.from_(BUCKET_EVALUACIONES).upload(
                 path, file_bytes, {"content-type": ct}

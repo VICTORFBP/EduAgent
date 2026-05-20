@@ -43,6 +43,8 @@ class N8nService:
         duracion: int,
         recursos: str,
         docente_id: str,
+        feedback: str | None = None,
+        contenido_anterior: dict | None = None,
     ) -> dict:
         """Trigger the planeación generation workflow in n8n."""
         payload = {
@@ -52,6 +54,8 @@ class N8nService:
             "duracion": duracion,
             "recursos": recursos,
             "docente_id": docente_id,
+            "feedback": feedback,
+            "contenido_anterior": contenido_anterior,
         }
         return await self._call_webhook(settings.n8n_webhook_planeacion, payload)
 
@@ -111,6 +115,26 @@ class N8nService:
         }
         return await self._call_webhook(settings.n8n_webhook_ingesta, payload)
 
+    async def trigger_generar_actividad(
+        self,
+        planeacion_id: str,
+        area: str,
+        grados: list[int],
+        tema: str,
+        contenido_generado: dict,
+    ) -> dict:
+        """Trigger the activity generation workflow in n8n."""
+        payload = {
+            "planeacion_id": planeacion_id,
+            "area": area,
+            "grados": grados,
+            "tema": tema,
+            "contenido_generado": contenido_generado,
+        }
+        url = f"{settings.n8n_base_url.rstrip('/')}/webhook/generar-actividad"
+        return await self._call_webhook(url, payload)
+
 
 # Singleton instance
 n8n_service = N8nService()
+

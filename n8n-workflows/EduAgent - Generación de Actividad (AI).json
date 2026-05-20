@@ -1,0 +1,172 @@
+{
+  "name": "EduAgent - Generación de Actividad (AI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generar-actividad",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1",
+      "name": "Webhook",
+      "position": [
+        -200,
+        120
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Genera una actividad evaluativa (taller/cuestionario/guía de ejercicios) basada en la siguiente planeación didáctica:\n\nÁrea: {{$json.body.area}}\nGrados: {{$json.body.grados.join(', ')}}\nTema: {{$json.body.tema}}\nPlaneación:\n{{JSON.stringify($json.body.contenido_generado)}}\n\nEl taller debe estar adaptado para un aula multigrado. Divide las actividades explícitamente para cada grado seleccionado.\nIncluye ejercicios prácticos, operaciones matemáticas u otras tareas específicas de escritura/análisis.\n\nRetorna un JSON que contenga:\n1. titulo: El título de la actividad.\n2. instrucciones: Instrucciones generales para el estudiante.\n3. contenido_grados: Un objeto con llaves para cada grado (ej. \"4\", \"5\") y el valor como el taller de ese grado formateado en Markdown.\n4. clave_respuestas: Las respuestas esperadas y criterios de evaluación para el docente en Markdown.\n\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown ni texto adicional.",
+        "options": {
+          "systemMessage": "Eres un docente experto en diseño de material educativo y evaluación formativa para escuelas rurales de aula multigrado (modelo Escuela Nueva). Creas talleres didácticos y prácticos con ejercicios y operaciones adaptados al nivel cognitivo de cada grado, facilitando la evaluación posterior."
+        }
+      },
+      "id": "a2",
+      "name": "ActivityAgent",
+      "position": [
+        100,
+        120
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "a3",
+      "name": "ChatOpenAI",
+      "position": [
+        0,
+        320
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "id",
+              "value": "={{$('Webhook').first().json.body.planeacion_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a5",
+      "name": "SetProperties",
+      "position": [
+        300,
+        120
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "planeaciones",
+        "filterType": "manual",
+        "matchType": "anyFilter",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').first().json.body.planeacion_id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "actividad_generada",
+              "fieldValue": "={{JSON.parse($('ActivityAgent').first().json.text)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4",
+      "name": "SupabaseUpdate",
+      "position": [
+        500,
+        120
+      ],
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "ActivityAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatOpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "ActivityAgent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ActivityAgent": {
+      "main": [
+        [
+          {
+            "node": "SetProperties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetProperties": {
+      "main": [
+        [
+          {
+            "node": "SupabaseUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
