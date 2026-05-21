@@ -41,8 +41,8 @@ export default function NuevaPlaneacionPage() {
   const [area, setArea] = useState("");
   const [grados, setGrados] = useState<number[]>([]);
   const [tema, setTema] = useState("");
-  const [duracion, setDuracion] = useState("2");
   const [recursos, setRecursos] = useState("");
+  const [tipoActividad, setTipoActividad] = useState("");
   
   const { generatePlaneacion, isLoading, error } = usePlaneaciones();
   const [generatedPlan, setGeneratedPlan] = useState<any | null>(null);
@@ -74,8 +74,8 @@ export default function NuevaPlaneacionPage() {
         area,
         grados,
         tema,
-        duracion: parseInt(duracion),
         recursos,
+        tipoActividad: tipoActividad.trim() || undefined,
       });
       setGeneratedPlan(result);
       toast.success("Planeación generada correctamente");
@@ -156,21 +156,6 @@ export default function NuevaPlaneacionPage() {
               />
             </div>
 
-            {/* Duración */}
-            <div className="space-y-2">
-              <Label htmlFor="duracion">Duración (horas)</Label>
-              <input
-                id="duracion"
-                type="number"
-                min="1"
-                max="8"
-                placeholder="2"
-                value={duracion}
-                onChange={(e) => setDuracion(e.target.value)}
-                className="w-full h-10 rounded-md border border-white/10 bg-white/5 px-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none w-32"
-              />
-            </div>
-
             {/* Recursos */}
             <div className="space-y-2">
               <Label htmlFor="recursos">Recursos disponibles (opcional)</Label>
@@ -181,6 +166,25 @@ export default function NuevaPlaneacionPage() {
                 onChange={(e) => setRecursos(e.target.value)}
                 className="bg-white/5 border-white/10 min-h-[80px]"
               />
+            </div>
+
+            {/* Tipo de Actividad */}
+            <div className="space-y-2">
+              <Label htmlFor="tipo-actividad" className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                Tipo de actividad o instrucciones específicas
+                <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+              </Label>
+              <Textarea
+                id="tipo-actividad"
+                placeholder={`Ej: Quiero 4 ejercicios de sumas con espacio para el procedimiento y 2 problemas de resolución.\nEj: Un cuento de una página con preguntas de verdadero/falso y selección múltiple.`}
+                value={tipoActividad}
+                onChange={(e) => setTipoActividad(e.target.value)}
+                className="bg-white/5 border-white/10 min-h-[110px] text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                La IA usará estas instrucciones para personalizar el formato de la actividad generada.
+              </p>
             </div>
 
             {error && (

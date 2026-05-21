@@ -10,62 +10,49 @@
       },
       "id": "a1",
       "name": "Webhook",
-      "position": [
-        -200,
-        120
-      ],
+      "position": [-200, 120],
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1
     },
     {
       "parameters": {
-        "workflowId": "spnDlvMJdmA1Cdu9"
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "=Genera una actividad evaluativa (taller práctico) para el área {{ $json.body.area }}, grados {{ $json.body.grados.join(', ') }}, tema: {{ $json.body.tema }}.\n\nPlaneación curricular base (usa esto como fundamento pedagógico):\n{{ JSON.stringify($json.body.contenido_generado) }}\n{{ $json.body.tipo_actividad ? '\\n\\nInstrucciones específicas del docente sobre el formato de la actividad:\\n' + $json.body.tipo_actividad : '' }}\n{{ $json.body.skill_context ? '\\n\\nInstrucciones de formato para esta área:\\n' + $json.body.skill_context : '' }}",
+        "options": {
+          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva y aulas multigrado.\n\nTu tarea es generar una actividad evaluativa (taller práctico imprimible) alineada con la planeación curricular proporcionada.\n\nREGLAS DE FORMATO OBLIGATORIAS:\n- Usa SOLO Markdown puro. PROHIBIDO usar etiquetas HTML (<br>, <div>, etc.).\n- Para espacios de respuesta o procedimiento, usa tablas markdown de una columna con filas vacías, o bloques de cita con líneas en blanco.\n- Usa LaTeX con $...$ para fórmulas inline.\n- Cada entrada en contenido_grados debe comenzar con un subtítulo claro, ej: \"## Taller de [tema] — Grado 5\".\n\nSi el docente indicó un tipo de actividad o formato específico, respétalo al pie de la letra.\nSi se incluyen instrucciones de formato para el área (skill_context), aplícalas estrictamente.\n\nLa actividad debe estar en formato JSON con estas claves:\n1. titulo: Título general del taller.\n2. instrucciones: Instrucciones generales para el estudiante (Markdown).\n3. contenido_grados: Objeto donde cada clave es el grado como string (\"4\", \"5\") y el valor es Markdown exclusivo de ese grado.\n4. clave_respuestas: Solucionario para el docente en Markdown.\n\nGenera contenido diferenciado y completo por cada grado. Contexto rural, Escuela Nueva.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
+        }
       },
-      "id": "exec_m",
-      "name": "ExecMath",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [
-        200,
-        -20
-      ]
+      "id": "a2",
+      "name": "AIAgent",
+      "position": [200, 120],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5
     },
     {
       "parameters": {
-        "workflowId": "ubDxiebseBzaDyD6"
+        "model": "gpt-4o-mini",
+        "options": {}
       },
-      "id": "exec_l",
-      "name": "ExecLang",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [
-        200,
-        120
-      ]
+      "id": "a3",
+      "name": "ChatOpenAI",
+      "position": [100, 320],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": "EzYiDzu8IYTvv56L"
-      },
-      "id": "exec_g",
-      "name": "ExecGen",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [
-        200,
-        260
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "for (const item of $input.all()) {\n  const data = item.json;\n  item.json = { actividad: data, id: $(\"Webhook\").first().json.body.planeacion_id };\n}\nreturn $input.all();"
+        "jsCode": "const planeacionId = $('Webhook').first().json.body.planeacion_id;\nlet raw = $('AIAgent').first().json.output ?? $('AIAgent').first().json.text ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: { actividad: raw, planeacion_id: planeacionId } }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nconst actividad = JSON.parse(raw);\nreturn [{ json: { actividad, planeacion_id: planeacionId } }];"
       },
       "id": "a5",
-      "name": "SetProperties",
-      "position": [
-        400,
-        120
-      ],
+      "name": "ParseActividad",
+      "position": [400, 120],
       "type": "n8n-nodes-base.code",
       "typeVersion": 2
     },
@@ -97,10 +84,7 @@
       },
       "id": "a4",
       "name": "SupabaseUpdate",
-      "position": [
-        600,
-        120
-      ],
+      "position": [600, 120],
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "credentials": {
@@ -109,141 +93,20 @@
           "name": "Supabase account"
         }
       }
-    },
-    {
-      "id": "if_math",
-      "name": "IfMath",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        0,
-        120
-      ],
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{$json.body.area}}",
-              "operation": "contains",
-              "value2": "Matemáticas"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "if_lang",
-      "name": "IfLang",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        100,
-        260
-      ],
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{$json.body.area}}",
-              "operation": "contains",
-              "value2": "Lenguaje"
-            }
-          ]
-        }
-      }
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "IfMath",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "AIAgent", "type": "main", "index": 0 }]]
     },
-    "ExecMath": {
-      "main": [
-        [
-          {
-            "node": "SetProperties",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "AIAgent": {
+      "main": [[{ "node": "ParseActividad", "type": "main", "index": 0 }]]
     },
-    "ExecLang": {
-      "main": [
-        [
-          {
-            "node": "SetProperties",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "ChatOpenAI": {
+      "ai_languageModel": [[{ "node": "AIAgent", "type": "ai_languageModel", "index": 0 }]]
     },
-    "ExecGen": {
-      "main": [
-        [
-          {
-            "node": "SetProperties",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SetProperties": {
-      "main": [
-        [
-          {
-            "node": "SupabaseUpdate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IfMath": {
-      "main": [
-        [
-          {
-            "node": "ExecMath",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "IfLang",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IfLang": {
-      "main": [
-        [
-          {
-            "node": "ExecLang",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "ExecGen",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "ParseActividad": {
+      "main": [[{ "node": "SupabaseUpdate", "type": "main", "index": 0 }]]
     }
   },
   "settings": {

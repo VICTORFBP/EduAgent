@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 export function usePlaneaciones() {
@@ -44,8 +44,9 @@ export function usePlaneaciones() {
     area: string, 
     grados: number[], 
     tema: string, 
-    duracion: number, 
+    duracion?: number, 
     recursos: string,
+    tipoActividad?: string,
     parent_plan_id?: string,
     feedback?: string
   }) => {
@@ -54,7 +55,17 @@ export function usePlaneaciones() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || undefined;
-      const result = await apiPost<any>("/planeacion/", req, token);
+      const payload = {
+        area: req.area,
+        grados: req.grados,
+        tema: req.tema,
+        duracion: req.duracion ?? 2,
+        recursos: req.recursos,
+        tipo_actividad: req.tipoActividad,
+        parent_plan_id: req.parent_plan_id,
+        feedback: req.feedback,
+      };
+      const result = await apiPost<any>("/planeacion/", payload, token);
       setPlaneaciones((prev) => [result, ...prev]);
       return result;
     } catch (err: any) {
@@ -102,6 +113,22 @@ export function usePlaneaciones() {
     }
   };
 
+  const deletePlaneacion = async (id: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || undefined;
+      await apiDelete(`/planeacion/${id}`, token);
+      setPlaneaciones((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar planeación");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     planeaciones,
     isLoading,
@@ -111,6 +138,7 @@ export function usePlaneaciones() {
     generatePlaneacion,
     validatePlaneacion,
     generateActividad,
+    deletePlaneacion,
   };
 }
 

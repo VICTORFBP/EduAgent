@@ -82,6 +82,13 @@ class SupabaseService:
         )
         return response.data[0]
 
+    async def delete_planeacion(self, planeacion_id: str) -> bool:
+        """Delete a planeación by ID."""
+        if not self.client:
+            return True
+        self.client.table("planeaciones").delete().eq("id", planeacion_id).execute()
+        return True
+
     # ---- Evaluaciones ----
 
     async def get_evaluaciones(self, docente_id: str) -> list[dict]:

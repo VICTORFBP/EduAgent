@@ -17,7 +17,9 @@ import {
   Heart,
   Palette,
   Loader2,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AREA_COLORS } from "@/lib/types";
 import { usePlaneaciones } from "@/hooks/usePlaneaciones";
 import Link from "next/link";
@@ -42,7 +44,19 @@ function formatDate(iso: string): string {
 
 export default function PlaneacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { planeaciones, isLoading, fetchPlaneaciones } = usePlaneaciones();
+  const { planeaciones, isLoading, fetchPlaneaciones, deletePlaneacion } = usePlaneaciones();
+
+  const handleDelete = async (e: React.MouseEvent, planId: string, tema: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`¿Eliminar la planeación "${tema}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await deletePlaneacion(planId);
+      toast.success("Planeación eliminada");
+    } catch {
+      toast.error("Error al eliminar la planeación");
+    }
+  };
 
   useEffect(() => {
     fetchPlaneaciones();
@@ -101,26 +115,36 @@ export default function PlaneacionPage() {
             return (
               <Link key={plan.id} href={`/planeacion/${plan.id}`}>
                 <Card
-                  className="glass-card border-white/5 hover:border-white/15 transition-all duration-300 hover:-translate-y-1 cursor-pointer h-full animate-slide-up"
+                  className="glass-card border-white/5 hover:border-white/15 transition-all duration-300 hover:-translate-y-1 cursor-pointer h-full animate-slide-up relative"
                   style={{ animationDelay: `${(i + 1) * 100}ms` }}
                 >
                   <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <Badge className={`${AREA_COLORS[plan.area] || "bg-muted"} border-0 text-xs`}>
                         <AreaIcon className="w-3 h-3 mr-1" />
                         {plan.area}
                       </Badge>
-                      {plan.validada_docente ? (
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-amber-500" />
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDelete(e, plan.id, plan.tema)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          aria-label="Eliminar planeación"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        {plan.validada_docente ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-amber-500" />
+                        )}
+                      </div>
                     </div>
                     <h3 className="font-semibold text-sm leading-snug line-clamp-2">
                       {plan.tema}
                     </h3>
                     <div className="flex flex-wrap gap-1">
-                      {plan.grados.map((g) => (
+                      {plan.grados.map((g: number) => (
                         <span
                           key={g}
                           className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground"

@@ -11,6 +11,7 @@ class PlaneacionCreateRequest(BaseModel):
     tema: str = Field(..., min_length=3, description="Tema de la planeación")
     duracion: int = Field(2, ge=1, le=8, description="Duración en horas")
     recursos: str = Field("", description="Recursos disponibles")
+    tipo_actividad: Optional[str] = Field(None, description="Tipo de actividad o instrucciones de formato")
     parent_plan_id: Optional[str] = Field(None, description="ID de la planeación padre para refinamiento")
     feedback: Optional[str] = Field(None, description="Comentarios de retroalimentación para refinamiento")
 
