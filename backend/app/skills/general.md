@@ -1,3 +1,5 @@
+> **NORMAS DE FORMATO OBLIGATORIAS**: Sigue estrictamente las normas de `document_standards.md` para márgenes, espaciado y distribución.
+
 # Referencia pedagógica (Skill): General
 
 **Esto NO es una plantilla fija.** Orienta variedad y claridad en talleres de áreas que no tienen skill propia (sociales, convivencia, etc.).

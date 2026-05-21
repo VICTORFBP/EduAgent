@@ -1,3 +1,5 @@
+> **NORMAS DE FORMATO OBLIGATORIAS**: Sigue estrictamente las normas de `document_standards.md` para márgenes, espaciado y distribución.
+
 # Referencia pedagógica (Skill): Lenguaje
 
 **Esto NO es una plantilla fija.** Son criterios para talleres de comprensión lectora, escritura y lenguaje adaptados al grado y al tema.

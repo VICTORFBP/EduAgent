@@ -21,6 +21,15 @@ def _get_skill_context(area: str) -> str:
     """Read the formatting skill markdown file based on the area."""
     skills_dir = os.path.join(os.path.dirname(__file__), "..", "skills")
 
+    standards = ""
+    standards_path = os.path.join(skills_dir, "document_standards.md")
+    try:
+        if os.path.exists(standards_path):
+            with open(standards_path, "r", encoding="utf-8") as f:
+                standards = f.read()
+    except Exception as e:
+        logger.error(f"Error reading standards file {standards_path}: {e}")
+
     filename = "general.md"
     area_lower = area.lower()
     if "matematica" in area_lower or "matem?tica" in area_lower:
@@ -31,14 +40,15 @@ def _get_skill_context(area: str) -> str:
         filename = "ciencias.md"
 
     filepath = os.path.join(skills_dir, filename)
+    skill_content = "Genera el contenido en formato Markdown estructurado."
     try:
         if os.path.exists(filepath):
             with open(filepath, "r", encoding="utf-8") as f:
-                return f.read()
+                skill_content = f.read()
     except Exception as e:
         logger.error(f"Error reading skill file {filepath}: {e}")
 
-    return "Genera el contenido en formato Markdown estructurado."
+    return f"{standards}\n\n---\n\n{skill_content}"
 
 
 def _extract_data(raw) -> dict:
@@ -162,6 +172,23 @@ async def generate_actividad(
         )
 
         updated_plan = await supabase_service.get_planeacion(planeacion_id)
+        actividad_generada = updated_plan.get("actividad_generada")
+        
+        # Automatic Verification
+        if actividad_generada:
+            try:
+                verified_actividad = await n8n_service.trigger_verificar_actividad(actividad_generada)
+                if verified_actividad and isinstance(verified_actividad, dict):
+                    # Only update if the structure looks valid
+                    if "contenido_grados" in verified_actividad or "titulo" in verified_actividad:
+                        updated_plan["actividad_generada"] = verified_actividad
+                        await supabase_service.update_planeacion(
+                            planeacion_id, 
+                            {"actividad_generada": verified_actividad}
+                        )
+            except Exception as e:
+                logger.warning(f"Error en verificación automática, usando original: {e}")
+
         return updated_plan
     except HTTPException:
         raise
@@ -170,3 +197,34 @@ async def generate_actividad(
         raise HTTPException(
             status_code=502, detail=f"Error al generar actividad: {str(e)}"
         )
+
+
+@router.get("/{planeacion_id}/actividad/pdf")
+async def get_actividad_pdf(
+    planeacion_id: str,
+    grado: int,
+):
+    """Genera y devuelve el PDF de la actividad para un grado específico."""
+    from fastapi.responses import Response
+    from app.services.pdf_generator import pdf_generator_service
+    
+    plan = await supabase_service.get_planeacion(planeacion_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Planeación no encontrada")
+    
+    actividad = plan.get("actividad_generada")
+    if not actividad:
+        raise HTTPException(status_code=404, detail="La planeación no tiene actividad generada")
+        
+    try:
+        pdf_bytes = await pdf_generator_service.generate_pdf(actividad, plan, grado)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename=actividad_grado_{grado}.pdf"}
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"Error generando PDF: {repr(e)}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Error interno al generar el PDF: {repr(e)}")

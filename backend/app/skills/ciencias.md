@@ -1,3 +1,5 @@
+> **NORMAS DE FORMATO OBLIGATORIAS**: Sigue estrictamente las normas de `document_standards.md` para márgenes, espaciado y distribución.
+
 # Referencia pedagógica (Skill): Ciencias
 
 **Esto NO es una plantilla fija.** Orienta talleres de ciencias naturales o sociales con variedad y espacios de respuesta claros.

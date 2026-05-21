@@ -1,3 +1,5 @@
+> **NORMAS DE FORMATO OBLIGATORIAS**: Sigue estrictamente las normas de `document_standards.md` para márgenes, espaciado y distribución.
+
 # Referencia pedagógica (Skill): Matemáticas
 
 **Esto NO es una plantilla fija.** Son criterios de calidad y ejemplos de formato para que el taller sea completo, variado y apropiado al tema y grado. Adapta secciones y cantidad de ejercicios al contexto de la planeación.

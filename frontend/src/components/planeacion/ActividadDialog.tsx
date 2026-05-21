@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Copy, Printer, ChevronDown } from "lucide-react";
+import { BookOpen, Copy, Printer, ChevronDown, Download, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +34,7 @@ import { openActividadPrintWindow } from "@/lib/actividad-print";
 export type ActividadViewMode = "document" | "teacher";
 
 export interface ActividadDialogPlan {
+  id?: string;
   area: string;
   tema: string;
   grados?: number[];
@@ -164,7 +165,7 @@ export function ActividadDialog({
 
         <div className="flex-1 overflow-y-auto py-4 pr-1 min-h-0">
           {viewMode === "document" ? (
-            <div className="space-y-4">
+            <div className="space-y-4 h-full flex flex-col">
               {actividadGrades.length >= 2 && (
                 <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-neutral-900/90 py-2 -mt-2">
                   {actividadGrades.map((g) => (
@@ -183,20 +184,16 @@ export function ActividadDialog({
                   ))}
                 </div>
               )}
-              <div className="flex justify-center bg-neutral-950 p-4 sm:p-6 rounded-xl border border-white/5">
-                {displayGrade == null || !gradeContent ? (
-                  <p className="text-sm text-muted-foreground p-8">
-                    No hay contenido para mostrar.
+              <div className="flex-1 w-full bg-neutral-950 rounded-xl border border-white/5 overflow-hidden relative min-h-[500px]">
+                {displayGrade == null ? (
+                  <p className="text-sm text-muted-foreground p-8 text-center mt-20">
+                    Selecciona un grado.
                   </p>
                 ) : (
-                  <ActividadDocument
-                    titulo={actividad?.titulo || "Actividad Evaluativa"}
-                    area={plan.area}
-                    tema={plan.tema}
-                    grado={displayGrade}
-                    instrucciones={actividad?.instrucciones}
-                    contenidoGrado={gradeContent}
-                    showGradeBadge={actividadGrades.length >= 2}
+                  <iframe 
+                    src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}#toolbar=0&navpanes=0`}
+                    className="w-full h-full border-0 bg-white"
+                    title={`PDF Actividad Grado ${displayGrade}`}
                   />
                 )}
               </div>
@@ -252,11 +249,30 @@ export function ActividadDialog({
               <>
                 <Button
                   variant="outline"
-                  onClick={handleCopy}
-                  className="border-white/10 text-xs"
+                  onClick={() => {
+                    const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}`;
+                    window.open(url, "_blank");
+                  }}
+                  className="border-white/10 text-xs text-primary bg-primary/10 hover:bg-primary/20"
                 >
-                  <Copy className="w-4 h-4 mr-1" />
-                  {copied ? "Copiado" : "Copiar"}
+                  <Maximize2 className="w-4 h-4 mr-1" />
+                  Pantalla completa
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}`;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `Actividad_Grado_${displayGrade}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                  className="border-white/10 text-xs border-emerald-500/20 text-emerald-500 bg-emerald-600/10 hover:bg-emerald-600/20"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Descargar PDF
                 </Button>
                 {actividadGrades.length >= 2 ? (
                   <DropdownMenu>

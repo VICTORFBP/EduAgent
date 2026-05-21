@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     n8n_webhook_planeacion: str = "http://localhost:5678/webhook/planeacion"
     n8n_webhook_evaluacion: str = "http://localhost:5678/webhook/evaluacion-vision"
     n8n_webhook_consulta: str = "http://localhost:5678/webhook/consulta"
+    n8n_webhook_verificar: str = "http://localhost:5678/webhook/verificar-actividad"
     n8n_webhook_secret: str = ""
 
     # --- App ---

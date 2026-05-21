@@ -146,7 +146,10 @@ ${ACTIVIDAD_TALLER_CSS}
     page-break-inside: avoid;
   }
   @media print {
-    body { margin: 20px; }
-    @page { margin: 1.5cm; }
+    body { margin: 0; }
+    @page { 
+      size: letter;
+      margin: 2cm 2.5cm;
+    }
   }
 `;

@@ -16,7 +16,7 @@ class N8nService:
             "Content-Type": "application/json",
             "X-N8N-SECRET": settings.n8n_webhook_secret,
         }
-        self.timeout = httpx.Timeout(120.0)  # Long timeout for LLM operations
+        self.timeout = httpx.Timeout(180.0)  # Long timeout for LLM operations
 
     async def _call_webhook(self, url: str, payload: dict) -> dict:
         """Send a POST request to an n8n webhook endpoint."""
@@ -149,7 +149,14 @@ class N8nService:
         url = f"{settings.n8n_base_url.rstrip('/')}/webhook/generar-actividad"
         return await self._call_webhook(url, payload)
 
+    async def trigger_verificar_actividad(
+        self,
+        actividad: dict,
+    ) -> dict:
+        """Trigger the activity verification workflow in n8n."""
+        payload = actividad
+        return await self._call_webhook(settings.n8n_webhook_verificar, payload)
+
 
 # Singleton instance
 n8n_service = N8nService()
-
