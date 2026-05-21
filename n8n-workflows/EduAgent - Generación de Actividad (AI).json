@@ -16,43 +16,37 @@
     },
     {
       "parameters": {
-        "agent": "toolsAgent",
-        "promptType": "define",
-        "text": "=Genera una actividad evaluativa (taller práctico) para el área {{ $json.body.area }}, grados {{ $json.body.grados.join(', ') }}, tema: {{ $json.body.tema }}.\n\nPlaneación curricular base (usa esto como fundamento pedagógico):\n{{ JSON.stringify($json.body.contenido_generado) }}\n{{ $json.body.tipo_actividad ? '\\n\\nInstrucciones específicas del docente sobre el formato de la actividad:\\n' + $json.body.tipo_actividad : '' }}\n{{ $json.body.skill_context ? '\\n\\nInstrucciones de formato para esta área:\\n' + $json.body.skill_context : '' }}",
-        "options": {
-          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva y aulas multigrado.\n\nTu tarea es generar una actividad evaluativa (taller práctico imprimible) alineada con la planeación curricular proporcionada.\n\nREGLAS DE FORMATO OBLIGATORIAS:\n- Usa SOLO Markdown puro. PROHIBIDO usar etiquetas HTML (<br>, <div>, etc.).\n- Para espacios de respuesta o procedimiento, usa tablas markdown de una columna con filas vacías, o bloques de cita con líneas en blanco.\n- Usa LaTeX con $...$ para fórmulas inline.\n- Cada entrada en contenido_grados debe comenzar con un subtítulo claro, ej: \"## Taller de [tema] — Grado 5\".\n\nSi el docente indicó un tipo de actividad o formato específico, respétalo al pie de la letra.\nSi se incluyen instrucciones de formato para el área (skill_context), aplícalas estrictamente.\n\nLa actividad debe estar en formato JSON con estas claves:\n1. titulo: Título general del taller.\n2. instrucciones: Instrucciones generales para el estudiante (Markdown).\n3. contenido_grados: Objeto donde cada clave es el grado como string (\"4\", \"5\") y el valor es Markdown exclusivo de ese grado.\n4. clave_respuestas: Solucionario para el docente en Markdown.\n\nGenera contenido diferenciado y completo por cada grado. Contexto rural, Escuela Nueva.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
-        }
+        "jsCode": "const body = $input.first().json.body;\nconst area = (body.area || '').toLowerCase();\nlet workflowId = 'EzYiDzu8IYTvv56L';\nif (area.includes('matematica') || area.includes('matemática')) {\n  workflowId = 'spnDlvMJdmA1Cdu9';\n} else if (area.includes('lenguaje') || area.includes('castellano')) {\n  workflowId = 'ubDxiebseBzaDyD6';\n}\nreturn [{ json: { body, workflowId } }];"
       },
-      "id": "a2",
-      "name": "AIAgent",
-      "position": [200, 120],
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 1.5
+      "id": "a6",
+      "name": "RouteByArea",
+      "position": [0, 120],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $json.workflowId }}",
+          "mode": "id"
+        },
+        "mode": "once",
         "options": {}
       },
-      "id": "a3",
-      "name": "ChatOpenAI",
-      "position": [100, 320],
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.1,
-      "credentials": {
-        "openAiApi": {
-          "id": "Jowod5NKcwNTE2fL",
-          "name": "OpenAI account"
-        }
-      }
+      "id": "a7",
+      "name": "ExecuteSubworkflow",
+      "position": [220, 120],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2
     },
     {
       "parameters": {
-        "jsCode": "const planeacionId = $('Webhook').first().json.body.planeacion_id;\nlet raw = $('AIAgent').first().json.output ?? $('AIAgent').first().json.text ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: { actividad: raw, planeacion_id: planeacionId } }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nconst actividad = JSON.parse(raw);\nreturn [{ json: { actividad, planeacion_id: planeacionId } }];"
+        "jsCode": "const planeacionId = $('Webhook').first().json.body.planeacion_id;\nconst item = $input.first().json;\nconst actividad = item.titulo != null ? item : (item.actividad ?? item);\nreturn [{ json: { actividad, planeacion_id: planeacionId } }];"
       },
-      "id": "a5",
-      "name": "ParseActividad",
-      "position": [400, 120],
+      "id": "a8",
+      "name": "WrapActividad",
+      "position": [440, 120],
       "type": "n8n-nodes-base.code",
       "typeVersion": 2
     },
@@ -60,8 +54,6 @@
       "parameters": {
         "operation": "update",
         "tableId": "planeaciones",
-        "filterType": "manual",
-        "matchType": "anyFilter",
         "filters": {
           "conditions": [
             {
@@ -71,7 +63,6 @@
             }
           ]
         },
-        "dataToSend": "defineBelow",
         "fieldsUi": {
           "fieldValues": [
             {
@@ -79,37 +70,38 @@
               "fieldValue": "={{ $json.actividad }}"
             }
           ]
-        },
-        "options": {}
+        }
       },
       "id": "a4",
       "name": "SupabaseUpdate",
-      "position": [600, 120],
+      "position": [660, 120],
       "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "credentials": {
-        "supabaseApi": {
-          "id": "hdMca8ziAD6HN8DO",
-          "name": "Supabase account"
-        }
-      }
+      "typeVersion": 1
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "AIAgent", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "RouteByArea", "type": "main", "index": 0 }]]
     },
-    "AIAgent": {
-      "main": [[{ "node": "ParseActividad", "type": "main", "index": 0 }]]
+    "RouteByArea": {
+      "main": [[{ "node": "ExecuteSubworkflow", "type": "main", "index": 0 }]]
     },
-    "ChatOpenAI": {
-      "ai_languageModel": [[{ "node": "AIAgent", "type": "ai_languageModel", "index": 0 }]]
+    "ExecuteSubworkflow": {
+      "main": [[{ "node": "WrapActividad", "type": "main", "index": 0 }]]
     },
-    "ParseActividad": {
+    "WrapActividad": {
       "main": [[{ "node": "SupabaseUpdate", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
     "executionOrder": "v1"
+  },
+  "_meta": {
+    "n8nId": "hEQzKCEwOLvgLcIL",
+    "subworkflows": {
+      "matematicas": "spnDlvMJdmA1Cdu9",
+      "lenguaje": "ubDxiebseBzaDyD6",
+      "general": "EzYiDzu8IYTvv56L"
+    }
   }
 }

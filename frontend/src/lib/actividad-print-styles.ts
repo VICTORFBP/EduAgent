@@ -1,5 +1,8 @@
+import { ACTIVIDAD_TALLER_CSS } from "./actividad-taller-styles";
+
 /** Shared print/preview CSS for activity documents. */
 export const ACTIVIDAD_PRINT_CSS = `
+${ACTIVIDAD_TALLER_CSS}
   body {
     font-family: Georgia, 'Times New Roman', serif;
     margin: 40px;

@@ -1,22 +1,16 @@
-# Instrucciones de Formato (Skill): General
+# Referencia pedagógica (Skill): General
 
-Al generar actividades o planeaciones para esta área, DEBES seguir estrictamente estas reglas de formato usando Markdown para que la renderización sea óptima:
+**Esto NO es una plantilla fija.** Orienta variedad y claridad en talleres de áreas que no tienen skill propia (sociales, convivencia, etc.).
 
-**IMPORTANTE:** No uses etiquetas HTML (`<br>`, `<div>`, etc.). Solo Markdown puro.
+## Formato de salida
 
-1. **Variedad de Actividades:**
-   - Evita que las actividades parezcan plantillas repetitivas.
-   - Combina preguntas abiertas de análisis, preguntas cerradas, y actividades prácticas adaptadas al contexto multigrado de Escuela Nueva.
+- **`contenido_grados`**: fragmento **HTML** (sin `<html>`, `<body>` ni scripts).
+- **`instrucciones`** y **`clave_respuestas`**: Markdown.
+- Clases útiles: `taller-section`, `taller-titulo-seccion`, `taller-instruccion`, `taller-tabla`, `taller-espacio-respuesta`, `taller-lineas`.
 
-2. **Espacios para Respuestas y Procedimientos:**
-   - Deja espacio explícito con tablas markdown o bloques `>` con líneas en blanco:
-     ```markdown
-     | Escribe tu respuesta aquí |
-     |---------------------------|
-     |                           |
-     |                           |
-     ```
+## Referencias de contenido
 
-3. **Instrucciones Especiales del Docente:**
-   - Lee con atención las instrucciones específicas del docente (ej. "preguntas de verdadero/falso", "ejercicios de completar").
-   - Ajusta el formato exactamente a lo que pida el docente de forma pedagógica y creativa, usando opciones múltiples (`- a) - b)`), cuadros para dibujar (`> Área de Dibujo`), etc.
+- Evita ejercicios repetitivos; combina análisis, preguntas cerradas y actividades prácticas (contexto rural / multigrado).
+- Deja espacios visibles para respuestas (tablas o líneas).
+- **5–8 ítems** por grado; material solo para el estudiante en `contenido_grados`.
+- Ajusta al `tipo_actividad` o instrucciones del docente cuando existan.

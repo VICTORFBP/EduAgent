@@ -1,74 +1,7 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import {
-  getGradeContent,
-  normalizeActividadMarkdown,
-} from "@/lib/actividad-markdown";
-
-const markdownComponents = {
-  h1: ({ ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-    <h1 className="text-xl font-bold mt-6 mb-3 text-black" {...props} />
-  ),
-  h2: ({ ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-    <h2
-      className="text-lg font-semibold mt-5 mb-2 text-gray-800 border-b border-gray-100 pb-1"
-      {...props}
-    />
-  ),
-  h3: ({ ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className="text-base font-medium mt-4 mb-2 text-gray-800" {...props} />
-  ),
-  p: ({ ...props }: HTMLAttributes<HTMLParagraphElement>) => (
-    <p className="mb-4 last:mb-0 text-[13.5px] text-gray-800 leading-relaxed" {...props} />
-  ),
-  ul: ({ ...props }: HTMLAttributes<HTMLUListElement>) => (
-    <ul className="list-disc pl-6 mb-4 space-y-1 text-gray-800" {...props} />
-  ),
-  ol: ({ ...props }: HTMLAttributes<HTMLOListElement>) => (
-    <ol className="list-decimal pl-6 mb-4 space-y-2 text-gray-800" {...props} />
-  ),
-  li: ({ ...props }: HTMLAttributes<HTMLLIElement>) => (
-    <li className="my-1 text-[13.5px]" {...props} />
-  ),
-  code: ({ ...props }: HTMLAttributes<HTMLElement>) => (
-    <code
-      className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800"
-      {...props}
-    />
-  ),
-  pre: ({ ...props }: HTMLAttributes<HTMLPreElement>) => (
-    <pre
-      className="bg-gray-50 p-4 rounded border border-gray-200 overflow-x-auto my-4 text-sm font-mono text-gray-800"
-      {...props}
-    />
-  ),
-  blockquote: ({ ...props }: HTMLAttributes<HTMLQuoteElement>) => (
-    <blockquote
-      className="border-l-4 border-gray-300 pl-4 italic my-4 text-gray-600"
-      {...props}
-    />
-  ),
-  table: ({ ...props }: HTMLAttributes<HTMLTableElement>) => (
-    <table className="w-full border-collapse border border-gray-400 my-4" {...props} />
-  ),
-  th: ({ ...props }: HTMLAttributes<HTMLTableCellElement>) => (
-    <th
-      className="border border-gray-400 bg-gray-100 p-3 text-left font-semibold text-xs text-gray-800"
-      {...props}
-    />
-  ),
-  td: ({ ...props }: HTMLAttributes<HTMLTableCellElement>) => (
-    <td
-      className="border border-gray-400 p-3 text-left text-[13.5px] text-gray-900 leading-normal min-h-[80px] align-top"
-      {...props}
-    />
-  ),
-};
+import { ActividadContent } from "@/components/planeacion/ActividadContent";
+import { getGradeContent } from "@/lib/actividad-markdown";
 
 export interface ActividadDocumentProps {
   titulo: string;
@@ -89,10 +22,8 @@ export function ActividadDocument({
   contenidoGrado,
   showGradeBadge = true,
 }: ActividadDocumentProps) {
-  const instruccionesMd = instrucciones
-    ? normalizeActividadMarkdown(instrucciones)
-    : "";
-  const contenidoMd = normalizeActividadMarkdown(contenidoGrado);
+  const hasInstrucciones =
+    instrucciones != null && String(instrucciones).trim() !== "";
 
   return (
     <div
@@ -136,15 +67,9 @@ export function ActividadDocument({
         </div>
       </div>
 
-      {instruccionesMd ? (
+      {hasInstrucciones ? (
         <div className="italic text-gray-700 mb-8 text-[14.5px] border-b border-gray-100 pb-6">
-          <ReactMarkdown
-            remarkPlugins={[remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={markdownComponents}
-          >
-            {instruccionesMd}
-          </ReactMarkdown>
+          <ActividadContent content={instrucciones} variant="document" />
         </div>
       ) : null}
 
@@ -155,13 +80,7 @@ export function ActividadDocument({
       ) : null}
 
       <div className="text-[14.5px] text-gray-900 leading-relaxed">
-        <ReactMarkdown
-          remarkPlugins={[remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={markdownComponents}
-        >
-          {contenidoMd}
-        </ReactMarkdown>
+        <ActividadContent content={contenidoGrado} variant="document" />
       </div>
     </div>
   );

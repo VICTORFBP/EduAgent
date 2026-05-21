@@ -1,16 +1,15 @@
 /** Normalize AI-generated markdown for consistent preview and print rendering. */
 
-export function formatLatex(text: string): string {
-  if (!text) return "";
-  return text
-    .replace(/\\\\\(/g, "$")
-    .replace(/\\\\\)/g, "$")
-    .replace(/\\\\\[/g, "$$")
-    .replace(/\\\\\]/g, "$$")
-    .replace(/\\\(/g, "$")
-    .replace(/\\\)/g, "$")
-    .replace(/\\\[/g, "$$")
-    .replace(/\\\]/g, "$$");
+import {
+  coerceActividadMarkdown,
+  formatLatex,
+  prepareActividadContent,
+} from "./actividad-content";
+
+export { coerceActividadMarkdown, formatLatex } from "./actividad-content";
+
+export function isPlainMarkdownString(value: unknown): value is string {
+  return typeof value === "string";
 }
 
 /** Map area name to skill label shown in UI (mirrors backend _get_skill_context). */
@@ -28,10 +27,11 @@ export function getSkillLabelForArea(area: string): string {
   return "General";
 }
 
-export function normalizeActividadMarkdown(text: string): string {
-  if (!text) return "";
+export function normalizeActividadMarkdown(text: unknown): string {
+  const raw = coerceActividadMarkdown(text);
+  if (!raw) return "";
 
-  let normalized = formatLatex(text);
+  let normalized = formatLatex(raw);
 
   // HTML line breaks → paragraph breaks (ReactMarkdown does not render raw HTML)
   normalized = normalized.replace(/<br\s*\/?>/gi, "\n\n");
@@ -47,9 +47,11 @@ export function getGradeContent(
   grade: number
 ): string | null {
   if (!contenidoGrados) return null;
-  const content =
+  const raw =
     contenidoGrados[grade] ??
     contenidoGrados[grade.toString()] ??
     contenidoGrados[String(grade)];
-  return content ? normalizeActividadMarkdown(String(content)) : null;
+  if (raw == null || raw === "") return null;
+  const { content } = prepareActividadContent(raw);
+  return content || null;
 }

@@ -26,7 +26,7 @@
         "promptType": "define",
         "text": "={{$json.body.feedback ? \"Refina la planeación curricular anterior basándose en los comentarios del docente.\\n\\nPlaneación anterior:\\n\" + JSON.stringify($json.body.contenido_anterior) + \"\\n\\nComentarios del docente (feedback):\\n\" + $json.body.feedback : \"Genera una planeación para el área de \" + $json.body.area + \", grados \" + $json.body.grados.join(', ') + \", tema: \" + $json.body.tema + \". Duración: \" + $json.body.duracion + \" horas. Recursos: \" + $json.body.recursos + \".\"}} {{$json.body.tipo_actividad ? \"\\n\\nInstrucciones específicas del docente:\\n\" + $json.body.tipo_actividad : \"\"}} {{$json.body.skill_context ? \"\\n\\nInstrucciones de formato para esta área:\\n\" + $json.body.skill_context : \"\"}}",
         "options": {
-          "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva. Tu tarea es generar o refinar una planeación curricular para un aula multigrado.\n\nUtiliza la herramienta 'buscar_documentos' para encontrar los DBA (Derechos Básicos de Aprendizaje) y estándares del MEN relevantes para el área y grados solicitados.\n\nSi se te pide refinar una planeación anterior según la retroalimentación del docente, mantén la estructura general y el contenido que sea correcto, pero modifica, corrige o amplía las secciones necesarias para atender puntualmente la retroalimentación provista por el docente.\n\nSi el docente proporcionó instrucciones específicas sobre el tipo de actividad, DEBES seguirlas al pie de la letra (ejemplo: cantidad de ejercicios, espacios en blanco, tipo de preguntas, etc).\n\nSi se incluyen instrucciones de formato para el área, aplícalas al contenido generado (uso de Markdown, LaTeX, listas, espacios, etc).\n\nLa planeación debe estar estrictamente en formato JSON y contener:\n1. objetivo: Un objetivo de aprendizaje claro.\n2. dba_citado: El texto del DBA que se está trabajando.\n3. indicadores: Una lista de objetos {grado: number, indicador: string} con indicadores específicos por grado.\n4. actividades: Un objeto con {apertura: string, desarrollo: string, cierre: string}.\n5. diferenciacion: Estrategias para manejar los diferentes niveles en el aula multigrado.\n6. criterios_evaluacion: Cómo se medirá el éxito.\n7. estandar_men: El estándar del MEN que fundamenta la planeación.\n\nAsegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
+            "systemMessage": "Eres un experto pedagógico de la Escuela Rural Mixta El Crucero, especializado en el modelo Escuela Nueva. Tu tarea es generar o refinar una planeación curricular para un aula multigrado.\n\nUtiliza la herramienta 'buscar_documentos' para encontrar los DBA (Derechos Básicos de Aprendizaje) y estándares del MEN relevantes para el área y grados solicitados.\n\nSi se te pide refinar una planeación anterior según la retroalimentación del docente, mantén la estructura general y el contenido que sea correcto, pero modifica, corrige o amplía las secciones necesarias para atender puntualmente la retroalimentación provista por el docente.\n\nSi el docente proporcionó instrucciones específicas sobre el tipo de actividad, DEBES seguirlas al pie de la letra (ejemplo: cantidad de ejercicios, espacios en blanco, tipo de preguntas, etc).\n\nSi se incluyen instrucciones de formato para el área, aplícalas solo a la planeación (texto/Markdown en actividades). NO uses HTML ni clases taller-* en este JSON; el HTML es solo para el flujo de taller/actividad evaluativa.\n\nLa planeación debe estar estrictamente en formato JSON y contener:\n1. objetivo: Un objetivo de aprendizaje claro.\n2. dba_citado: El texto del DBA que se está trabajando.\n3. indicadores: Una lista de objetos {grado: number, indicador: string} con indicadores específicos por grado.\n4. actividades: Un objeto con {apertura: string, desarrollo: string, cierre: string}.\n5. diferenciacion: Estrategias para manejar los diferentes niveles en el aula multigrado.\n6. criterios_evaluacion: Cómo se medirá el éxito.\n7. estandar_men: El estándar del MEN que fundamenta la planeación.\n\nPara fórmulas usa $...$ en strings JSON. Evita comandos LaTeX con backslash (\\sqrt, \\frac); prefiere notación legible: sqrt(36), 2^3, log_2(8). Nunca \\( \\) ni HTML en actividades.\nAsegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\nResponde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
         }
       },
       "id": "n2",
@@ -113,42 +113,28 @@
     },
     {
       "parameters": {
+        "jsCode": "let raw = $('AIAgent').first().json.output ?? $('AIAgent').first().json.text ?? '';\nif (typeof raw !== 'string') {\n  const body = $('Webhook').first().json.body;\n  return [{ json: { contenido_generado: raw, dba_referenciados: raw?.dba_citado ? [raw.dba_citado] : [], docente_id: body.docente_id, area: body.area, grados: body.grados, tema: body.tema, tipo_actividad: body.tipo_actividad || null, agente_usado: 'GPT-4o-Mini + RAG' } }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) raw = raw.substring(first, last + 1);\nraw = raw.replace(/\\\\\\(/g, '$').replace(/\\\\\\)/g, '$').replace(/\\\\\\[/g, '$$').replace(/\\\\\\]/g, '$$');\nfunction fixInvalidJsonEscapes(jsonStr) { return jsonStr.replace(/\\\\(?![\"\\\\/bfnrtu])/g, '\\\\\\\\'); }\nlet contenido;\ntry { contenido = JSON.parse(fixInvalidJsonEscapes(raw)); } catch (e) { throw new Error('JSON de planeación inválido: ' + e.message); }\nconst body = $('Webhook').first().json.body;\nreturn [{ json: { contenido_generado: contenido, dba_referenciados: contenido.dba_citado ? [contenido.dba_citado] : [], docente_id: body.docente_id, area: body.area, grados: body.grados, tema: body.tema, tipo_actividad: body.tipo_actividad || null, agente_usado: 'GPT-4o-Mini + RAG' } }];"
+      },
+      "id": "n9",
+      "name": "ParsePlaneacion",
+      "position": [430, 120],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "tableId": "planeaciones",
         "dataToSend": "defineBelow",
         "fieldsUi": {
           "fieldValues": [
-            {
-              "fieldId": "docente_id",
-              "fieldValue": "={{$('Webhook').first().json.body.docente_id}}"
-            },
-            {
-              "fieldId": "area",
-              "fieldValue": "={{$('Webhook').first().json.body.area}}"
-            },
-            {
-              "fieldId": "grados",
-              "fieldValue": "={{$('Webhook').first().json.body.grados}}"
-            },
-            {
-              "fieldId": "tema",
-              "fieldValue": "={{$('Webhook').first().json.body.tema}}"
-            },
-            {
-              "fieldId": "contenido_generado",
-              "fieldValue": "={{JSON.parse($('AIAgent').first().json.output)}}"
-            },
-            {
-              "fieldId": "agente_usado",
-              "fieldValue": "GPT-4o-Mini + RAG"
-            },
-            {
-              "fieldId": "dba_referenciados",
-              "fieldValue": "={{ [JSON.parse($('AIAgent').first().json.output).dba_citado] }}"
-            },
-            {
-              "fieldId": "tipo_actividad",
-              "fieldValue": "={{$('Webhook').first().json.body.tipo_actividad || null}}"
-            }
+            { "fieldId": "docente_id", "fieldValue": "={{ $json.docente_id }}" },
+            { "fieldId": "area", "fieldValue": "={{ $json.area }}" },
+            { "fieldId": "grados", "fieldValue": "={{ $json.grados }}" },
+            { "fieldId": "tema", "fieldValue": "={{ $json.tema }}" },
+            { "fieldId": "contenido_generado", "fieldValue": "={{ $json.contenido_generado }}" },
+            { "fieldId": "agente_usado", "fieldValue": "={{ $json.agente_usado }}" },
+            { "fieldId": "dba_referenciados", "fieldValue": "={{ $json.dba_referenciados }}" },
+            { "fieldId": "tipo_actividad", "fieldValue": "={{ $json.tipo_actividad }}" }
           ]
         },
         "options": {}
@@ -202,15 +188,10 @@
       ]
     },
     "AIAgent": {
-      "main": [
-        [
-          {
-            "node": "SupabaseInsert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "ParsePlaneacion", "type": "main", "index": 0 }]]
+    },
+    "ParsePlaneacion": {
+      "main": [[{ "node": "SupabaseInsert", "type": "main", "index": 0 }]]
     },
     "ChatOpenAI": {
       "ai_languageModel": [

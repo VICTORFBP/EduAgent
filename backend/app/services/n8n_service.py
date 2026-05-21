@@ -26,7 +26,14 @@ class N8nService:
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError as e:
-            logger.error(f"n8n webhook error ({url}): {e.response.status_code}")
+            body = ""
+            try:
+                body = e.response.text[:500]
+            except Exception:
+                pass
+            logger.error(
+                f"n8n webhook error ({url}): {e.response.status_code} {body}"
+            )
             raise
         except httpx.ConnectError:
             logger.error(f"Cannot connect to n8n ({url}). Is n8n running?")

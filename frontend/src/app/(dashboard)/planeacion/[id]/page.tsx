@@ -24,18 +24,12 @@ import {
   Plus,
   Trash2,
   Check,
-  Printer,
-  Copy,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AREA_COLORS } from "@/lib/types";
 import { usePlaneaciones } from "@/hooks/usePlaneaciones";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,16 +40,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ActividadDocument,
-  getActividadGradesWithContent,
-} from "@/components/planeacion/ActividadDocument";
-import {
-  getGradeContent,
-  getSkillLabelForArea,
-  normalizeActividadMarkdown,
-} from "@/lib/actividad-markdown";
-import { openActividadPrintWindow } from "@/lib/actividad-print";
+import { ActividadDialog } from "@/components/planeacion/ActividadDialog";
+import { getActividadGradesWithContent } from "@/components/planeacion/ActividadDocument";
 
 export default function PlaneacionDetailPage({
   params,
@@ -84,9 +70,7 @@ export default function PlaneacionDetailPage({
   const [aiFeedback, setAiFeedback] = useState("");
   const [isGeneratingActividad, setIsGeneratingActividad] = useState(false);
   const [isActividadDialogOpen, setIsActividadDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"student" | "preview" | "teacher">("student");
-  const [previewGrade, setPreviewGrade] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [actividadInitialGrade, setActividadInitialGrade] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -217,7 +201,7 @@ export default function PlaneacionDetailPage({
       const updatedPlan = await generateActividad(id);
       setPlan(updatedPlan);
       const grades = getActividadGradesWithContent(updatedPlan);
-      setPreviewGrade(grades[0] ?? updatedPlan.grados?.[0] ?? null);
+      setActividadInitialGrade(grades[0] ?? updatedPlan.grados?.[0] ?? null);
       setIsActividadDialogOpen(true);
       toast.success("Actividad evaluativa generada con éxito");
     } catch (err: any) {
@@ -226,37 +210,6 @@ export default function PlaneacionDetailPage({
     } finally {
       setIsGeneratingActividad(false);
     }
-  };
-
-  const handleCopyActividad = () => {
-    if (!plan.actividad_generada) return;
-    let textToCopy = `${plan.actividad_generada.titulo}\n\nInstrucciones: ${plan.actividad_generada.instrucciones}\n\n`;
-    plan.grados?.forEach((g: number) => {
-      const gradeContent = plan.actividad_generada.contenido_grados?.[g] || plan.actividad_generada.contenido_grados?.[g.toString()];
-      if (gradeContent) {
-        textToCopy += `--- GRADO ${g} ---\n${gradeContent}\n\n`;
-      }
-    });
-    navigator.clipboard.writeText(textToCopy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const actividadGrades = plan?.actividad_generada
-    ? getActividadGradesWithContent(plan)
-    : [];
-
-  const handlePrint = (grade?: number) => {
-    if (!plan.actividad_generada) return;
-    const gradeToPrint =
-      grade ??
-      (activeTab === "preview" && previewGrade != null ? previewGrade : undefined);
-    openActividadPrintWindow(plan, gradeToPrint);
-  };
-
-  const handlePrintAllGrades = () => {
-    if (!plan.actividad_generada) return;
-    openActividadPrintWindow(plan);
   };
 
   const sections = isObject ? [
@@ -387,7 +340,7 @@ export default function PlaneacionDetailPage({
                   <Button
                     onClick={() => {
                       const grades = getActividadGradesWithContent(plan);
-                      setPreviewGrade(grades[0] ?? plan.grados?.[0] ?? null);
+                      setActividadInitialGrade(grades[0] ?? plan.grados?.[0] ?? null);
                       setIsActividadDialogOpen(true);
                     }}
                     variant="outline"
@@ -765,268 +718,14 @@ export default function PlaneacionDetailPage({
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de Actividad Evaluativa */}
-      <Dialog open={isActividadDialogOpen} onOpenChange={setIsActividadDialogOpen}>
-        <DialogContent className="glass-card border-white/10 bg-neutral-900/95 text-foreground max-w-3xl w-full h-[85vh] flex flex-col p-6 overflow-hidden">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <BookOpen className="w-5 h-5 text-emerald-500" />
-              {plan.actividad_generada?.titulo || "Actividad Evaluativa"}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-neutral-400 flex flex-wrap items-center gap-2">
-              <span>Taller práctico evaluativo diseñado específicamente para esta planeación curricular.</span>
-              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
-                Skill aplicada: {getSkillLabelForArea(plan.area)}
-              </Badge>
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Selector de pestañas */}
-          <div className="flex gap-2 border-b border-white/10 pb-3 mt-4 flex-shrink-0">
-            <button
-              onClick={() => setActiveTab("student")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === "student"
-                  ? "bg-primary/20 text-primary border border-primary/30"
-                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
-              }`}
-            >
-              Vista Dashboard
-            </button>
-            <button
-              onClick={() => {
-                if (previewGrade == null && actividadGrades.length > 0) {
-                  setPreviewGrade(actividadGrades[0]);
-                }
-                setActiveTab("preview");
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === "preview"
-                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
-              }`}
-            >
-              Vista Previa Impresión
-            </button>
-            <button
-              onClick={() => setActiveTab("teacher")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === "teacher"
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
-              }`}
-            >
-              Solucionario (Docente)
-            </button>
-          </div>
-
-          {/* Contenido scrolleable */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
-            {activeTab === "student" ? (
-              <div className="space-y-6">
-                <div className="p-4 rounded-xl border border-white/5 bg-white/5">
-                  <p className="text-xs font-semibold text-muted-foreground/60 uppercase mb-2">Instrucciones Generales:</p>
-                  <div className="text-sm italic leading-relaxed text-muted-foreground">
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {normalizeActividadMarkdown(plan.actividad_generada?.instrucciones || "")}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {plan.grados?.map((g: number) => {
-                    const gradeContent = plan.actividad_generada?.contenido_grados?.[g] || plan.actividad_generada?.contenido_grados?.[g.toString()];
-                    if (!gradeContent) return null;
-                    return (
-                      <div key={g} className="p-5 rounded-xl border border-white/5 bg-black/20 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-bold">
-                            Grado {g}
-                          </span>
-                        </div>
-                        <div className="text-sm text-neutral-300 leading-relaxed bg-black/40 p-5 rounded-lg border border-white/5 markdown-content">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
-                            components={{
-                              h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-4 mb-2 text-primary" {...props} />,
-                              h2: ({node, ...props}) => <h2 className="text-base font-semibold mt-3 mb-2 text-foreground" {...props} />,
-                              h3: ({node, ...props}) => <h3 className="text-sm font-medium mt-2 mb-1 text-foreground/90" {...props} />,
-                              p: ({node, ...props}) => <p className="mb-3 last:mb-0 leading-relaxed text-muted-foreground" {...props} />,
-                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1 text-muted-foreground" {...props} />,
-                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-muted-foreground" {...props} />,
-                              li: ({node, ...props}) => <li className="text-sm my-1" {...props} />,
-                              code: ({node, ...props}) => <code className="bg-black/35 px-1.5 py-0.5 rounded text-xs font-mono text-primary" {...props} />,
-                              pre: ({node, ...props}) => <pre className="bg-black/60 p-4 rounded-lg border border-white/5 overflow-x-auto my-3 text-xs font-mono" {...props} />,
-                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/40 pl-4 italic my-3 text-muted-foreground" {...props} />,
-                              table: ({node, ...props}) => <table className="w-full border-collapse border border-white/10 my-4" {...props} />,
-                              th: ({node, ...props}) => <th className="border border-white/10 bg-white/5 p-3 text-left font-semibold text-xs text-primary" {...props} />,
-                              td: ({node, ...props}) => <td className="border border-white/10 p-3 text-left text-sm text-neutral-300" {...props} />
-                            }}
-                          >
-                            {normalizeActividadMarkdown(gradeContent)}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : activeTab === "preview" ? (
-              <div className="space-y-4">
-                {actividadGrades.length >= 2 && (
-                  <div className="flex flex-wrap gap-2">
-                    {actividadGrades.map((g: number) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setPreviewGrade(g)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          previewGrade === g
-                            ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                            : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
-                        }`}
-                      >
-                        Grado {g}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="flex justify-center bg-neutral-950 p-4 rounded-xl border border-white/5">
-                  {(() => {
-                    const g =
-                      previewGrade ??
-                      actividadGrades[0] ??
-                      plan.grados?.[0];
-                    const content =
-                      g != null
-                        ? getGradeContent(
-                            plan.actividad_generada?.contenido_grados,
-                            g
-                          )
-                        : null;
-                    if (g == null || !content) {
-                      return (
-                        <p className="text-sm text-muted-foreground p-8">
-                          No hay contenido para previsualizar.
-                        </p>
-                      );
-                    }
-                    return (
-                      <ActividadDocument
-                        titulo={
-                          plan.actividad_generada?.titulo || "Actividad Evaluativa"
-                        }
-                        area={plan.area}
-                        tema={plan.tema}
-                        grado={g}
-                        instrucciones={plan.actividad_generada?.instrucciones}
-                        contenidoGrado={content}
-                        showGradeBadge={actividadGrades.length >= 2}
-                      />
-                    );
-                  })()}
-                </div>
-              </div>
-            ) : (
-              <div className="p-5 rounded-xl border border-emerald-500/10 bg-emerald-500/5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-sm text-emerald-400">Guía de Respuestas y Criterios de Calificación</h4>
-                  <Link href={`/evaluacion/nueva?area=${encodeURIComponent(plan.area)}&tipo=abierta`}>
-                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs">
-                      Calificar con Gemini Vision
-                    </Button>
-                  </Link>
-                </div>
-                <div className="text-sm text-neutral-300 leading-relaxed bg-black/40 p-5 rounded-lg border border-white/5 markdown-content">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={{
-                      h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-4 mb-2 text-emerald-400" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-base font-semibold mt-3 mb-2 text-foreground" {...props} />,
-                      h3: ({node, ...props}) => <h3 className="text-sm font-medium mt-2 mb-1 text-foreground/90" {...props} />,
-                      p: ({node, ...props}) => <p className="mb-3 last:mb-0 leading-relaxed text-muted-foreground" {...props} />,
-                      ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1 text-muted-foreground" {...props} />,
-                      ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-muted-foreground" {...props} />,
-                      li: ({node, ...props}) => <li className="text-sm my-1" {...props} />,
-                      code: ({node, ...props}) => <code className="bg-black/35 px-1.5 py-0.5 rounded text-xs font-mono text-emerald-400" {...props} />,
-                      pre: ({node, ...props}) => <pre className="bg-black/60 p-4 rounded-lg border border-white/5 overflow-x-auto my-3 text-xs font-mono" {...props} />,
-                      table: ({node, ...props}) => <table className="w-full border-collapse border border-white/10 my-4" {...props} />,
-                      th: ({node, ...props}) => <th className="border border-white/10 bg-white/5 p-3 text-left font-semibold text-xs text-emerald-400" {...props} />,
-                      td: ({node, ...props}) => <td className="border border-white/10 p-3 text-left text-sm text-neutral-300" {...props} />
-                    }}
-                  >
-                    {normalizeActividadMarkdown(plan.actividad_generada?.clave_respuestas || "")}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer del diálogo */}
-          <div className="flex justify-between items-center border-t border-white/10 pt-4 flex-shrink-0">
-            <span className="text-xs text-muted-foreground">
-              {activeTab === "teacher" 
-                ? "👀 Guarda el solucionario de forma confidencial." 
-                : activeTab === "preview" 
-                ? "🖨️ Así se verá tu documento al imprimirlo."
-                : "⚠️ Esta vista es para revisar el contenido cómodamente en pantalla."}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsActividadDialogOpen(false)}
-                className="border-white/10 text-xs"
-              >
-                Cerrar
-              </Button>
-              {activeTab !== "teacher" && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={handleCopyActividad}
-                    className="border-white/10 text-xs"
-                  >
-                    <Copy className="w-4 h-4 mr-1" />
-                    {copied ? "Copiado" : "Copiar"}
-                  </Button>
-                  {actividadGrades.length >= 2 ? (
-                    <>
-                      {actividadGrades.map((g: number) => (
-                        <Button
-                          key={g}
-                          variant="outline"
-                          onClick={() => handlePrint(g)}
-                          className="border-white/10 text-xs"
-                        >
-                          <Printer className="w-4 h-4 mr-1" />
-                          Grado {g}
-                        </Button>
-                      ))}
-                      <Button
-                        onClick={handlePrintAllGrades}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-                      >
-                        <Printer className="w-4 h-4 mr-1" />
-                        Todos
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={() => handlePrint()}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-                    >
-                      <Printer className="w-4 h-4 mr-1" />
-                      Imprimir
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {plan.actividad_generada && (
+        <ActividadDialog
+          open={isActividadDialogOpen}
+          onOpenChange={setIsActividadDialogOpen}
+          plan={plan}
+          initialGrade={actividadInitialGrade}
+        />
+      )}
     </div>
   );
 }

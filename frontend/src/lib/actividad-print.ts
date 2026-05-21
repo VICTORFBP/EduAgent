@@ -1,6 +1,10 @@
 import { marked } from "marked";
 import { ACTIVIDAD_PRINT_CSS } from "./actividad-print-styles";
 import {
+  prepareActividadContent,
+  sanitizeActividadHtml,
+} from "./actividad-content";
+import {
   getGradeContent,
   normalizeActividadMarkdown,
 } from "./actividad-markdown";
@@ -13,13 +17,22 @@ export interface ActividadPlan {
     titulo?: string;
     instrucciones?: string;
     contenido_grados?: Record<string | number, string>;
-    clave_respuestas?: string;
+    clave_respuestas?: unknown;
   };
 }
 
 function markdownToHtml(text: string): string {
   const normalized = normalizeActividadMarkdown(text);
   return marked.parse(normalized, { async: false }) as string;
+}
+
+function contentToHtml(raw: string): string {
+  const prepared = prepareActividadContent(raw);
+  if (!prepared.content) return "";
+  if (prepared.format === "html") {
+    return `<div class="actividad-taller content-body">${sanitizeActividadHtml(prepared.content)}</div>`;
+  }
+  return `<div class="content-body">${markdownToHtml(prepared.content)}</div>`;
 }
 
 function buildHeaderHtml(plan: ActividadPlan, grade: number): string {
@@ -66,14 +79,14 @@ function buildGradeSectionHtml(plan: ActividadPlan, grade: number): string {
 
   const titulo = actividad.titulo || "Actividad Evaluativa";
   const instrucciones = actividad.instrucciones
-    ? markdownToHtml(actividad.instrucciones)
+    ? contentToHtml(actividad.instrucciones)
     : "";
 
   return `
     <h1>${escapeHtml(titulo)}</h1>
     ${buildHeaderHtml(plan, grade)}
     ${instrucciones ? `<div class="instructions">${instrucciones}</div>` : ""}
-    <div class="content-body">${markdownToHtml(gradeContent)}</div>
+    ${contentToHtml(gradeContent)}
   `;
 }
 

@@ -1,28 +1,16 @@
-# Instrucciones de Formato (Skill): Ciencias Naturales y Sociales
+# Referencia pedagógica (Skill): Ciencias
 
-Al generar actividades o planeaciones de ciencias (naturales o sociales), DEBES seguir estrictamente estas reglas de formato usando Markdown para que la renderización sea óptima:
+**Esto NO es una plantilla fija.** Orienta talleres de ciencias naturales o sociales con variedad y espacios de respuesta claros.
 
-**IMPORTANTE:** No uses etiquetas HTML (`<br>`, `<div>`, etc.). Solo Markdown puro.
+## Formato de salida
 
-1. **Variedad de Actividades:**
-   - Evita que las actividades parezcan plantillas repetitivas. 
-   - Combina preguntas abiertas de análisis, preguntas cerradas (selección múltiple o falso/verdadero), y actividades prácticas (experimentos caseros o exploración del entorno escolar).
+- **`contenido_grados`**: fragmento **HTML** (sin `<html>`, `<body>` ni scripts).
+- **`instrucciones`** y **`clave_respuestas`**: Markdown.
+- Clases: `taller-section`, `taller-titulo-seccion`, `taller-instruccion`, `taller-tabla`, `taller-espacio-respuesta`, `taller-lineas`.
 
-2. **Formato de Experimentos o Prácticas:**
-   - Si incluyes una exploración o experimento, usa listas para los Materiales y pasos numerados para el Procedimiento.
-   - Usa alertas de seguridad si es necesario:
-     ```markdown
-     > **Precaución:** Recuerda pedir ayuda a un adulto para este paso.
-     ```
+## Referencias de contenido
 
-3. **Espacios para Respuestas:**
-   - Usa tablas markdown para observaciones y respuestas abiertas:
-     ```markdown
-     | Observaciones y respuesta |
-     |---------------------------|
-     |                           |
-     |                           |
-     ```
-
-4. **Instrucciones Especiales del Docente:**
-   - Ajusta el formato exactamente a lo que pida el docente (ej: "preguntas abiertas y cerradas", "dibujo del ciclo del agua", etc.). Hazlo de forma creativa y atractiva.
+- Combina análisis, preguntas cerradas (V/F, selección múltiple) y prácticas (experimento casero, exploración del entorno).
+- Experimentos: listas de materiales + pasos numerados; precaución en `blockquote` si aplica.
+- Diagramas: área delimitada con `taller-espacio-respuesta` y varias `taller-lineas`.
+- **5–8 ítems** por grado; sin respuestas en `contenido_grados`.
