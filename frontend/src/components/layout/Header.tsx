@@ -80,41 +80,12 @@ export function Header() {
     <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 lg:px-6">
       {/* Left: Mobile menu + Title */}
       <div className="flex items-center gap-3">
-        {/* Mobile menu trigger */}
-        <Sheet>
-          <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
-            <Menu className="w-5 h-5" />
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[280px] p-0">
-            <div className="flex items-center gap-3 px-4 h-16 border-b border-border">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl gradient-primary">
-                <GraduationCap className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-sm">EduAgent</h2>
-                <p className="text-[10px] text-muted-foreground">El Crucero</p>
-              </div>
-            </div>
-            <nav className="px-3 py-4 space-y-1">
-              {[
-                { label: "Dashboard", href: "/dashboard" },
-                { label: "Planeación", href: "/planeacion" },
-                { label: "Evaluación", href: "/evaluacion" },
-                { label: "Documentos", href: "/documentos" },
-                { label: "Consulta RAG", href: "/consulta" },
-                { label: "Estudiantes", href: "/estudiantes" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block px-3 py-2.5 rounded-xl text-sm hover:bg-accent transition-colors"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </SheetContent>
-        </Sheet>
+        {/* Logo and Mobile Title */}
+        <div className="flex items-center gap-3 lg:hidden">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl gradient-primary">
+            <GraduationCap className="w-5 h-5 text-white" />
+          </div>
+        </div>
 
         <h1 className="text-lg font-semibold tracking-tight">{pageTitle}</h1>
       </div>

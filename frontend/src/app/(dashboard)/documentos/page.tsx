@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,21 @@ function formatDate(iso: string): string {
 
 export default function DocumentosPage() {
   const { documentos, isLoading, fetchDocumentos, deleteDocumento, reprocesarDocumento } = useDocumentos();
+  const [rol, setRol] = useState<string>("docente");
 
   useEffect(() => {
     fetchDocumentos();
+    
+    async function checkRole() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from("docentes").select("rol").eq("id", user.id).single();
+        if (data && data.rol) setRol(data.rol);
+      }
+    }
+    checkRole();
   }, [fetchDocumentos]);
 
   const handleDelete = async (id: string) => {
@@ -118,28 +130,30 @@ export default function DocumentosPage() {
                           </div>
                           <p className="text-xs text-muted-foreground mt-1.5">{formatDate(doc.created_at)}</p>
                         </div>
-                        <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {!doc.vectorizado && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReprocesar(doc.id)}
-                              className="text-primary hover:bg-primary/10"
-                              title="Reprocesar vectorización"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(doc.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Eliminar documento"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                          <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {!doc.vectorizado && rol === "admin" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleReprocesar(doc.id)}
+                                className="text-primary hover:bg-primary/10"
+                                title="Reprocesar vectorización"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {rol === "admin" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(doc.id)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Eliminar documento"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
                       </div>
                     </CardContent>
                   </Card>

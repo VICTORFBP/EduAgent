@@ -38,9 +38,9 @@ export default function EstudiantesPage() {
       
       let query = supabase.from("estudiantes").select("*").order("grado");
       
-      // If not admin, only fetch students from assigned grades
-      if (docente && docente.rol !== "admin" && docente.grados_asignados) {
-        query = query.in("grado", docente.grados_asignados);
+      // If not admin, only fetch assigned students
+      if (docente && docente.rol !== "admin") {
+        query = query.eq("docente_id", user.id);
       }
 
       const { data: estData } = await query;
