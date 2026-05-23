@@ -20,7 +20,7 @@
 ## Distribución del contenido
 - El contenido debe llenar al menos el 70% de la página.
 - No dejar más de 1/3 de la página en blanco al final.
-- Las tablas deben usar la clase `taller-tabla` y no deben romperse entre páginas de forma antiestética.
+- Las tablas deben generarse en Markdown y no deben romperse entre páginas de forma antiestética.
 - Si una sección no cabe completa, debe pasar a la página siguiente.
 
-**IMPORTANTE**: Aplica estas reglas al estructurar el HTML y Markdown, evitando saltos de línea innecesarios (`<br><br>`) que arruinan la distribución al imprimir.
+**IMPORTANTE**: Aplica estas reglas al estructurar el Markdown, evitando saltos de línea innecesarios que arruinan la distribución al imprimir.

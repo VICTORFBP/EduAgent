@@ -1,61 +1,114 @@
-> **NORMAS DE FORMATO OBLIGATORIAS**: Sigue estrictamente las normas de `document_standards.md` para márgenes, espaciado y distribución.
+---
+# Skill: Matemáticas
 
-# Referencia pedagógica (Skill): Matemáticas
+## Formato de salida — OBLIGATORIO
 
-**Esto NO es una plantilla fija.** Son criterios de calidad y ejemplos de formato para que el taller sea completo, variado y apropiado al tema y grado. Adapta secciones y cantidad de ejercicios al contexto de la planeación.
+El campo contenido_grados debe ser SIEMPRE Markdown puro.
+NUNCA generes HTML, etiquetas, ni clases CSS.
+El sistema convierte el Markdown a HTML automáticamente.
 
-## Formato de salida
+## Notación matemática
 
-**Planeación curricular** (`actividades.apertura`, `desarrollo`, `cierre`): texto o **Markdown** (no HTML). LaTeX con `$...$` usando palabras simples cuando sea posible (`sqrt(36)` en lugar de `\sqrt{36}` dentro del JSON).
+Usa exclusivamente estos delimitadores LaTeX:
+- Inline: \( expresión \)
+- Bloque: \[ expresión \]
 
-**Taller / actividad evaluativa** (`contenido_grados` del flujo de actividad): fragmento **HTML** (sin `<html>`, `<body>` ni scripts). La app lo renderiza e imprime con estilos.
+Ejemplos correctos:
+- Fracción: \(\frac{3}{8}\)
+- Potencia: \(2^3 = 8\)
+- Raíz: \(\sqrt{16} = 4\)
+- Multiplicación: \(3 \times 4 = 12\)
 
-- **`instrucciones`** y **`clave_respuestas`** (actividad): Markdown (solucionario para el docente).
-- **Matemáticas en HTML**: LaTeX con `$...$` inline y `$$...$$` en bloque. Ejemplo: `$2^5 = 32$`, `$\sqrt[3]{216}$`, `$\log_2 8 = 3$`. No uses `\( \)` ni texto plano tipo "dos a la cuatro".
+NUNCA uses: $...$  $$...$$  \(...\) con barras dobles  ni texto plano 
+como "3/8" o "2 elevado a 4".
 
-## Clases CSS recomendadas (referencia visual)
+## Tipos de pregunta disponibles
 
-| Clase | Uso |
-|-------|-----|
-| `taller-encabezado` | Tabla institucional (área, módulo, guía, competencia) con `colspan`/`rowspan` si aplica |
-| `taller-section` | Bloque de una acción o parte del taller |
-| `taller-titulo-seccion` | Título en mayúsculas (ej. ACCIÓN INTERPRETATIVA) |
-| `taller-instruccion` | Enunciado de la actividad |
-| `taller-tabla` | Tablas de completar (varias columnas: factores, base, exponente, potencia, lectura…) |
-| `taller-grilla` / `taller-grilla-3` | Rejilla de ejercicios (CSS grid 4 o 3 columnas) |
-| `taller-grilla-item` | Cada celda de ejercicio (`$21^2 =$` + espacio) |
-| `taller-celda-vacia` | Celda en blanco para el estudiante |
-| `taller-espacio-respuesta` | Etiqueta "Escribe procedimiento y respuesta" |
-| `taller-lineas` | Líneas para procedimiento manuscrito |
+Usa solo los que el docente haya pedido, o los más apropiados al tema:
 
-## Contenido esperado (referencia, no copiar literal)
+- Selección múltiple: A. [ ] B. [ ] C. [ ] D. [ ]
+- Pregunta abierta: con caja de respuesta
+- Procedimiento paso a paso: con caja de respuesta
+- Completar espacios: ______
+- Falso / Verdadero: V. [ ]  F. [ ]
+- Problema de contexto colombiano
 
-Por grado, busca **1–2 páginas** de material con:
+## Principios pedagógicos
 
-1. **Tabla interpretativa** (ej. factores iguales ↔ potencia ↔ lectura), con **una fila de ejemplo completa**.
-2. **Práctica numérica** en grilla o tabla (potencias, raíces o logaritmos según el tema).
-3. **Relación potencia–radicación–logaritmación** cuando el tema lo incluya (tabla o flechas `$a^b = c \rightarrow \log_a c = b$`).
-4. **Al menos un problema contextual** (granja, mercado, medidas rurales).
-5. **5–8 ítems evaluativos** por grado, progresivos; sin respuestas ni pistas en `contenido_grados`.
+- Adapta el nivel de dificultad a cada grado.
+- Usa contextos cotidianos colombianos (mercado, campo, escuela rural).
+- Si el docente especificó un formato, respétalo exactamente.
+- Si no especificó nada, elige el formato más apropiado al tema.
+- NO impongas estructura rígida.
+- NO incluyas respuestas en contenido_grados.
 
-## Ejemplo mínimo de estructura HTML (orientativo)
+## Componentes disponibles para el taller
 
-```html
-<section class="taller-section">
-  <h2 class="taller-titulo-seccion">ACCIÓN INTERPRETATIVA</h2>
-  <p class="taller-instruccion">Completa el cuadro. Observa el ejemplo.</p>
-  <table class="taller-tabla">
-    <thead><tr><th>Factores iguales</th><th>Potencia</th><th>Base</th><th>Exponente</th><th>Potencia</th><th>Lectura</th></tr></thead>
-    <tbody>
-      <tr><td>$2 \times 2 \times 2 \times 2$</td><td>$2^4$</td><td>2</td><td>4</td><td>16</td><td>Dos a la cuarta</td></tr>
-      <tr><td>$7 \times 7 \times 7$</td><td class="taller-celda-vacia"></td><td class="taller-celda-vacia"></td><td class="taller-celda-vacia"></td><td class="taller-celda-vacia"></td><td class="taller-celda-vacia"></td></tr>
-    </tbody>
-  </table>
-</section>
-```
+El sistema convierte tu Markdown a HTML automáticamente.
+Para activar componentes de diseño especiales, usa estas
+marcas exactas en el Markdown. El sistema las reconoce y
+aplica el CSS correspondiente.
 
-## Otras reglas
+### Caja de respuesta abierta
+Tamaño "media" (default), "alta" para producción escrita,
+"baja" para respuesta corta.
 
-- Respeta instrucciones exactas del docente (cantidad y tipo de ejercicios).
-- Contexto multigrado Escuela Nueva: un `contenido_grados` distinto por cada grado solicitado.
-- Selección múltiple en HTML: `A. [ ] opción` (casillas vacías).
+| **Escribe aquí tu respuesta:** |
+| :--- |
+| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+
+### Líneas para respuesta manuscrita
+Inserta el texto literal: [LINEAS:5]
+El número indica cuántas líneas generar (3 a 12).
+
+### Recuadro de fórmula o concepto clave
+
+Úsalo para destacar definiciones, propiedades o fórmulas importantes.
+El contenido dentro del recuadro se rendereará con fondo coloreado y
+borde.
+
+Formato:
+
+> 📦 RECUADRO
+> **Título o concepto:**
+> Contenido aquí. Puede incluir LaTeX: \(a^2 + b^2 = c^2\)
+> O múltiples líneas con ejemplos.
+
+Ejemplo real para multiplicación:
+
+> 📦 RECUADRO
+> **La multiplicación es suma abreviada**
+> \(3 \times 4 = 3 + 3 + 3 + 3 = 12\)
+> \(5 \times 6 = 5 + 5 + 5 + 5 + 5 + 5 = 30\)
+
+Lo anterior va a generar:
+[Recuadro con fondo coloreado]
+La multiplicación es suma abreviada
+3 × 4 = 3 + 3 + 3 + 3 = 12
+5 × 6 = 5 + 5 + 5 + 5 + 5 + 5 = 30
+[fin recuadro]
+
+### Falso y Verdadero
+Usa una tabla con columnas Afirmación | V | F:
+
+| Afirmación | V | F |
+|:-----------|:-:|:-:|
+| El sol sale por el oeste | | |
+| El agua hierve a 100°C | | |
+
+### Selección múltiple
+A. [ ] opción uno
+B. [ ] opción dos
+C. [ ] opción tres
+D. [ ] opción cuatro
+
+### Fragmento de lectura
+> 📖 FRAGMENTO
+> Texto del fragmento aquí, en cursiva con borde lateral.
+
+### Grilla de ejercicios (3 columnas)
+> 🔢 GRILLA
+> \(3 \times 4 =\) ___
+> \(5 \times 6 =\) ___
+> \(7 \times 8 =\) ___
+---
