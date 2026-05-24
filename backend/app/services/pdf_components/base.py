@@ -16,9 +16,10 @@ def markdown_to_html(text: str) -> str:
     # 1. Eliminar etiquetas <section> que el LLM alucina, para no romper el Markdown
     text = re.sub(r'</?section[^>]*>', '', text)
 
-    # 1.5 Asegurar que los blockquotes (>) tengan una línea en blanco antes, 
+    # 1.5 Asegurar que los blockquotes (>) y tablas (|) tengan una línea en blanco antes, 
     # de lo contrario Mistune los mezcla con el HTML o texto anterior.
     text = re.sub(r'(?m)^([^>\n].*)\n>', r'\1\n\n>', text)
+    text = re.sub(r'(?m)^([^|\n].*)\r?\n(\s*\|.*\|.*)$', r'\1\n\n\2', text)
 
     # 2. Convertir $...$ a \(...\) si el LLM ignoró la regla de no usar $
     text = re.sub(r'(?<![\$\\])\$([^$\n]+?)\$(?!\$)', lambda m: f'\\({m.group(1)}\\)', text)

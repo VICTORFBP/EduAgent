@@ -30,6 +30,15 @@ def _get_skill_context(area: str) -> str:
     except Exception as e:
         logger.error(f"Error reading standards file {standards_path}: {e}")
 
+    components = ""
+    components_path = os.path.join(skills_dir, "components_reference.md")
+    try:
+        if os.path.exists(components_path):
+            with open(components_path, "r", encoding="utf-8") as f:
+                components = f.read()
+    except Exception as e:
+        logger.error(f"Error reading components reference file {components_path}: {e}")
+
     filename = "general.md"
     area_lower = area.lower()
     if "matematica" in area_lower or "matem?tica" in area_lower:
@@ -48,7 +57,7 @@ def _get_skill_context(area: str) -> str:
     except Exception as e:
         logger.error(f"Error reading skill file {filepath}: {e}")
 
-    return f"{standards}\n\n---\n\n{skill_content}"
+    return f"{standards}\n\n{components}\n\n---\n\n{skill_content}"
 
 
 def _extract_data(raw) -> dict:

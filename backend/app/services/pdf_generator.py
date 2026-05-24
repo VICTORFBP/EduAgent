@@ -44,73 +44,22 @@ class PdfGeneratorService:
 
         clave_html = f"<div class='page-break'></div><div class='seccion-clave'><div class='encabezado-clave'>Clave de Respuestas</div>{clave}</div>" if clave else ""
 
-        html_final = f"""<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>{titulo_raw}</title>
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js">
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js">
-  </script>
-  <style>{CSS_STYLES}</style>
-</head>
-<body data-area="{area}">
+        template_path = os.path.join(os.path.dirname(__file__), "pdf_components", "pdf_template.html")
+        with open(template_path, "r", encoding="utf-8") as f:
+            template = f.read()
 
-  <!-- ENCABEZADO INSTITUCIONAL -->
-  <table class="encabezado-institucional">
-    <tr>
-      <td colspan="4" class="titulo-doc">{titulo_raw}</td>
-    </tr>
-    <tr>
-      <td width="15%"><span class="campo-label">ESTUDIANTE</span></td>
-      <td width="35%"><span class="campo-valor">&nbsp;</span></td>
-      <td width="15%"><span class="campo-label">GRADO</span></td>
-      <td width="35%"><span class="campo-valor">{grado}</span></td>
-    </tr>
-    <tr>
-      <td><span class="campo-label">FECHA</span></td>
-      <td><span class="campo-valor">&nbsp;</span></td>
-      <td><span class="campo-label">ÁREA</span></td>
-      <td><span class="campo-valor">{area}</span></td>
-    </tr>
-    <tr>
-      <td><span class="campo-label">TEMA</span></td>
-      <td colspan="2"><span class="campo-valor">{tema}</span></td>
-      <td class="nota-box">
-        Nota<span class="nota-grande"></span>
-      </td>
-    </tr>
-  </table>
+        instrucciones_html = f'<div class="instrucciones-generales">{instrucciones}</div>' if instrucciones else ''
 
-  <!-- INSTRUCCIONES GENERALES -->
-  {f'<div class="instrucciones-generales">{instrucciones}</div>' if instrucciones else ''}
-
-  <!-- CONTENIDO DE LA ACTIVIDAD -->
-  <div class="actividad-taller">
-    {contenido}
-  </div>
-
-  <!-- CLAVE DE RESPUESTAS (Siempre al final, en nueva página) -->
-  {clave_html}
-
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {{
-        renderMathInElement(document.body, {{
-          delimiters: [
-              {{left: '$$', right: '$$', display: true}},
-              {{left: '$', right: '$', display: false}},
-              {{left: '\\\\(', right: '\\\\)', display: false}},
-              {{left: '\\\\[', right: '\\\\]', display: true}}
-          ],
-          throwOnError : false
-        }});
-    }});
-  </script>
-</body>
-</html>"""
+        html_final = template.format(
+            titulo_raw=titulo_raw,
+            css_styles=CSS_STYLES,
+            area=area,
+            grado=grado,
+            tema=tema,
+            instrucciones_html=instrucciones_html,
+            contenido=contenido,
+            clave_html=clave_html
+        )
 
         with open("debug_html.html", "w", encoding="utf-8") as f:
             f.write(html_final)
