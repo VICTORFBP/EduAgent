@@ -2,8 +2,8 @@ import re
 
 def process(html: str) -> str:
     def procesar_grilla(match):
-        # Limpiamos los saltos de línea y etiquetas <p> que mistune pueda haber generado dentro
-        content = match.group(1)
+        # match.group(1) es el título opcional, group(2) es el contenido
+        content = match.group(2)
         content = re.sub(r'</?p>', '\n', content)
         content = content.replace('<br>', '').replace('<br/>', '').replace('<br />', '')
         items_raw = content.strip().split('\n')
@@ -13,8 +13,12 @@ def process(html: str) -> str:
         ])
         return f'<div class="grilla">{items}</div>'
 
+    # Capturar HTML alucinado por el LLM si ignoró el Markdown
+    html = html.replace('class="taller-grilla"', 'class="grilla"')
+    html = html.replace('class="taller-grilla-item"', 'class="grilla-item"')
+
     html = re.sub(
-        r'<blockquote>\s*<p>🔢 GRILLA\s*([\s\S]*?)</p>\s*</blockquote>',
+        r'<blockquote>\s*<p>🔢\s*([^\n<]*?)(?:<br>|\n)?([\s\S]*?)</blockquote>',
         procesar_grilla,
         html
     )

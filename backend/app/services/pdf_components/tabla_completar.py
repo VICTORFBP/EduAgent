@@ -16,4 +16,8 @@ def process(html: str) -> str:
 
     html = re.sub(r'<table class="tabla-completar">[\s\S]*?</table>', completar_vacias, html)
 
+    # Si el LLM alucinó una tabla con clase incorrecta
+    html = html.replace('class="taller-tabla"', 'class="tabla-completar"')
+    html = html.replace('class="taller-celda-vacia"', 'class="vacia"')
+
     return html

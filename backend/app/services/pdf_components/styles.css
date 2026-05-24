@@ -156,7 +156,7 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   border-radius: 4px;
   padding: 10px 16px;
   margin: 10px 0 16px;
-  background: #fdfdfd;
+  background: var(--cl);
   page-break-inside: avoid;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -189,6 +189,43 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
 .espacio-dibujo {
   height: 250px;
   background: white;
+}
+
+/* ── COMPONENTE: Caja de respuesta o Líneas ── */
+.lineas-respuesta {
+  margin: 12px 0 18px;
+  page-break-inside: avoid;
+  border: 1.5px solid var(--ca);
+  border-radius: 4px;
+  padding: 12px 16px;
+  background: #fdfdfd;
+}
+.linea {
+  border-bottom: 1.2px solid #ccc;
+  height: 28px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+.caja-respuesta {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 18px;
+  page-break-inside: avoid;
+  border: 1.5px solid var(--ca);
+}
+.caja-respuesta th {
+  background: var(--cp);
+  color: white;
+  font-family: sans-serif;
+  font-size: 9.5pt;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-bottom: 1.5px solid var(--ca);
+  text-align: left;
+}
+.caja-respuesta td {
+  padding: 10px;
+  background: #fdfdfd;
 }
 
 /* ── COMPONENTE: Tabla de completar ── */
@@ -320,6 +357,12 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   padding: 8px 14px; border-radius: 4px;
   font-family: sans-serif; font-weight: 700;
   font-size: 10pt; margin-bottom: 16px;
+}
+.seccion-clave h3 {
+  color: var(--cp);
+  border-bottom: 2px solid var(--cl);
+  padding-bottom: 4px;
+  margin-top: 20px;
 }
 
 /* ── Página ── */

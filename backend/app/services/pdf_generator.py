@@ -102,8 +102,8 @@ class PdfGeneratorService:
           delimiters: [
               {{left: '$$', right: '$$', display: true}},
               {{left: '$', right: '$', display: false}},
-              {{left: '\\(', right: '\\)', display: false}},
-              {{left: '\\[', right: '\\]', display: true}}
+              {{left: '\\\\(', right: '\\\\)', display: false}},
+              {{left: '\\\\[', right: '\\\\]', display: true}}
           ],
           throwOnError : false
         }});
@@ -130,10 +130,12 @@ class PdfGeneratorService:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
+                page.on("console", lambda msg: logger.warning(f"JS Console: {msg.text}"))
+                page.on("pageerror", lambda exc: logger.error(f"JS Error: {exc}"))
                 page.set_content(html, wait_until="networkidle")
                 
                 # Wait an extra second for KaTeX to fully render
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(1000)
                 
                 pdf_bytes = page.pdf(
                     format="Letter",

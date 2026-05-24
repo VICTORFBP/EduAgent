@@ -8,10 +8,16 @@ from app.services.supabase_service import supabase_service
 async def run_tests():
     print("=== Iniciando prueba de webhooks de n8n ===")
     
-    area = "Ciencias Naturales"
-    grados = [4, 5]
-    tema = "El ciclo del agua"
-    tipo_actividad = "taller"
+    area = "Matemáticas"
+    grados = [3, 4]
+    tema = "Multiplicación y División"
+    tipo_actividad = """Quiero una actividad práctica con 4 partes:
+Parte 1: Recuadro 📦 con la definición de multiplicación como suma abreviada, con 2 ejemplos usando LaTeX.
+Parte 2: Grilla 🔢 de 6 ejercicios de multiplicación básica (2×3, 4×5, 3×7, 5×2, 6×4, 8×3).
+Parte 3: Tabla de completar con 4 filas — columnas: "Expresión de suma", "Multiplicación", "Resultado". Primera fila resuelta como ejemplo.
+Parte 4: Problema contextual colombiano sobre compra en mercado o granja, requiere multiplicación.
+Grado 3: Multiplicación básica (hasta 10×10)
+Grado 4: Multiplicación y división (combinadas)"""
     
     # Obtenemos el contexto de la habilidad tal como lo hace la API
     skill_context = _get_skill_context(area)
