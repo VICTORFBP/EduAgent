@@ -24,6 +24,7 @@ import {
   Plus,
   Trash2,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -337,19 +338,44 @@ export default function PlaneacionDetailPage({
                   Ajustar con IA
                 </Button>
                 {plan.actividad_generada ? (
-                  <Button
-                    onClick={() => {
-                      const grades = getActividadGradesWithContent(plan);
-                      setActividadInitialGrade(grades[0] ?? plan.grados?.[0] ?? null);
-                      setIsActividadDialogOpen(true);
-                    }}
-                    variant="outline"
-                    className="border-white/10 text-xs bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500/20 text-emerald-500"
-                    size="sm"
-                  >
-                    <BookOpen className="w-4 h-4 mr-1" />
-                    Ver Actividad
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => {
+                        const grades = getActividadGradesWithContent(plan);
+                        setActividadInitialGrade(grades[0] ?? plan.grados?.[0] ?? null);
+                        setIsActividadDialogOpen(true);
+                      }}
+                      variant="outline"
+                      className="border-white/10 text-xs bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500/20 text-emerald-500"
+                      size="sm"
+                    >
+                      <BookOpen className="w-4 h-4 mr-1" />
+                      Ver Actividad
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (confirm("¿Estás seguro de regenerar la actividad? Esto sobrescribirá la actividad actual.")) {
+                          handleGenerateActividad();
+                        }
+                      }}
+                      disabled={isGeneratingActividad}
+                      variant="outline"
+                      className="border-white/10 text-xs bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-500"
+                      size="sm"
+                    >
+                      {isGeneratingActividad ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Regenerando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                          Regenerar
+                        </>
+                      )}
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     onClick={handleGenerateActividad}

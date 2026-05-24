@@ -171,6 +171,26 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   letter-spacing: .06em;
 }
 
+/* ── COMPONENTE: Caja para Dibujo ── */
+.caja-dibujo {
+  border: 1.5px solid var(--ca);
+  border-radius: 4px;
+  margin: 10px 0 16px;
+  page-break-inside: avoid;
+  overflow: hidden;
+}
+.caja-dibujo-instruccion {
+  background: #fdfdfd;
+  padding: 10px 16px;
+  font-size: 10pt;
+  border-bottom: 1.5px dashed var(--ca);
+  color: #333;
+}
+.espacio-dibujo {
+  height: 250px;
+  background: white;
+}
+
 /* ── COMPONENTE: Tabla de completar ── */
 .tabla-completar {
   width: 100%;
