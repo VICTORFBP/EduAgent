@@ -45,62 +45,63 @@ Usa solo los que el docente haya pedido, o los más apropiados al tema:
 ## Componentes disponibles para el taller
 
 El sistema convierte tu Markdown a HTML automáticamente.
-Para activar componentes de diseño especiales, usa estas
-marcas exactas en el Markdown. El sistema las reconoce y
-aplica el CSS correspondiente.
+Para activar componentes de diseño especiales, usa estas marcas exactas.
+**REGLA CRÍTICA DE FORMATO:** ¡NUNCA INDENTES los componentes! Las marcas `[LINEAS:N]`, `> 📦 RECUADRO`, `> 📖 FRAGMENTO` y las tablas `|...|` deben ir SIEMPRE al inicio de la línea (cero espacios a la izquierda), incluso si están debajo de un ítem de lista enumerada.
+
+**INSTRUCCIÓN OBLIGATORIA PARA RESPUESTAS:**
+Cada pregunta abierta O pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos componentes visuales:
+- Si requiere 1-2 líneas: `[LINEAS:2]`
+- Si requiere 3-5 líneas: `[LINEAS:5]`
+- Si requiere párrafo largo: tabla markdown con caja de respuesta (ver abajo).
+- Si requiere dibujo o proceso matemático largo: Usa un `> 📦 RECUADRO` con las instrucciones y debajo `[LINEAS:10]`.
+
+EJEMPLO CORRECTO DE RESPUESTA LARGA:
+1. Escribe el procedimiento para resolver esta ecuación.
+
+| **Escribe aquí tu respuesta:** |
+| :--- |
+| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+
+EJEMPLO CORRECTO DE PROCEDIMIENTO GRÁFICO:
+> 📦 PROCEDIMIENTO
+> Dibuja y resuelve la fracción geométrica.
+
+[LINEAS:10]
+
+**INSTRUCCIÓN OBLIGATORIA DE FRAGMENTO:**
+Siempre incluye pedagógicamente un fragmento `> 📖 FRAGMENTO` contextualizado para plantear problemas reales del entorno.
 
 ### Caja de respuesta abierta
-Tamaño "media" (default), "alta" para producción escrita,
-"baja" para respuesta corta.
+Tamaño "media" (default), "alta" para producción escrita, "baja" para respuesta corta. NUNCA la indentes.
 
 | **Escribe aquí tu respuesta:** |
 | :--- |
 | &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
 
 ### Líneas para respuesta manuscrita
-Inserta el texto literal: [LINEAS:5]
-El número indica cuántas líneas generar (3 a 12).
+Inserta el texto literal: `[LINEAS:N]` (N = número de líneas, de 3 a 12). NUNCA lo indentes.
 
 ### Recuadro de fórmula o concepto clave
+Úsalo para destacar fórmulas matemáticas o definiciones importantes. NUNCA lo indentes.
 
-Úsalo para destacar definiciones, propiedades o fórmulas importantes.
-El contenido dentro del recuadro se rendereará con fondo coloreado y
-borde.
-
-Formato:
-
+Ejemplo correcto:
 > 📦 RECUADRO
-> **Título o concepto:**
-> Contenido aquí. Puede incluir LaTeX: \(a^2 + b^2 = c^2\)
-> O múltiples líneas con ejemplos.
-
-Ejemplo real para multiplicación:
-
-> 📦 RECUADRO
-> **La multiplicación es suma abreviada**
-> \(3 \times 4 = 3 + 3 + 3 + 3 = 12\)
-> \(5 \times 6 = 5 + 5 + 5 + 5 + 5 + 5 = 30\)
-
-Lo anterior va a generar:
-[Recuadro con fondo coloreado]
-La multiplicación es suma abreviada
-3 × 4 = 3 + 3 + 3 + 3 = 12
-5 × 6 = 5 + 5 + 5 + 5 + 5 + 5 = 30
-[fin recuadro]
+> **El Perímetro**
+> Es la suma de las medidas de todos los lados de una figura.
 
 ### Falso y Verdadero
-Usa una tabla con columnas Afirmación | V | F:
+Usa una tabla con columnas Afirmación | V | F. NUNCA la indentes.
+
+Ejemplo correcto:
+2. Responde verdadero o falso:
 
 | Afirmación | V | F |
 |:-----------|:-:|:-:|
-| El sol sale por el oeste | | |
-| El agua hierve a 100°C | | |
+| Un triángulo tiene 4 lados | | |
 
 ### Selección múltiple
 A. [ ] opción uno
 B. [ ] opción dos
-C. [ ] opción tres
-D. [ ] opción cuatro
 
 ### Fragmento de lectura
 > 📖 FRAGMENTO

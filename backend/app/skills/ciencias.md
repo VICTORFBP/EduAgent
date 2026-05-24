@@ -20,62 +20,63 @@ El sistema convierte el Markdown a HTML automáticamente.
 ## Componentes disponibles para el taller
 
 El sistema convierte tu Markdown a HTML automáticamente.
-Para activar componentes de diseño especiales, usa estas
-marcas exactas en el Markdown. El sistema las reconoce y
-aplica el CSS correspondiente.
+Para activar componentes de diseño especiales, usa estas marcas exactas.
+**REGLA CRÍTICA DE FORMATO:** ¡NUNCA INDENTES los componentes! Las marcas `[LINEAS:N]`, `> 📦 RECUADRO`, `> 📖 FRAGMENTO` y las tablas `|...|` deben ir SIEMPRE al inicio de la línea (cero espacios a la izquierda), incluso si están debajo de un ítem de lista enumerada.
+
+**INSTRUCCIÓN OBLIGATORIA PARA RESPUESTAS:**
+Cada pregunta abierta O pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos componentes visuales:
+- Si requiere 1-2 líneas: `[LINEAS:2]`
+- Si requiere 3-5 líneas: `[LINEAS:5]`
+- Si requiere párrafo largo: tabla markdown con caja de respuesta (ver abajo).
+- Si es dibujo: Usa un `> 📦 RECUADRO` con las instrucciones del dibujo y debajo `[LINEAS:10]` para el espacio.
+
+EJEMPLO CORRECTO DE RESPUESTA LARGA:
+1. Describe brevemente cada etapa del ciclo del agua.
+
+| **Escribe aquí tu respuesta:** |
+| :--- |
+| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+
+EJEMPLO CORRECTO DE DIBUJO:
+> 📦 DIBUJO
+> Dibuja el ciclo del agua con las 4 etapas claramente etiquetadas.
+
+[LINEAS:10]
+
+**INSTRUCCIÓN OBLIGATORIA DE FRAGMENTO:**
+Siempre incluye pedagógicamente un fragmento `> 📖 FRAGMENTO` contextualizado en tu país/entorno (ej. ecosistemas locales) para enriquecer el taller.
 
 ### Caja de respuesta abierta
-Tamaño "media" (default), "alta" para producción escrita,
-"baja" para respuesta corta.
+Tamaño "media" (default), "alta" para producción escrita, "baja" para respuesta corta. NUNCA la indentes.
 
 | **Escribe aquí tu respuesta:** |
 | :--- |
 | &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
 
 ### Líneas para respuesta manuscrita
-Inserta el texto literal: [LINEAS:5]
-El número indica cuántas líneas generar (3 a 12).
+Inserta el texto literal: `[LINEAS:N]` (N = número de líneas, de 3 a 12). NUNCA lo indentes.
 
 ### Recuadro de fórmula o concepto clave
+Úsalo para destacar definiciones o resúmenes. NUNCA lo indentes.
 
-Úsalo para destacar definiciones, propiedades o resúmenes importantes.
-El contenido dentro del recuadro se rendereará con fondo coloreado y
-borde.
-
-Formato:
-
-> 📦 RECUADRO
-> **Título o concepto:**
-> Contenido aquí.
-> O múltiples líneas con ejemplos.
-
-Ejemplo real para ciencias:
-
+Ejemplo correcto:
 > 📦 RECUADRO
 > **El Ciclo del Agua**
 > Es el proceso por el cual el agua se mueve en la Tierra.
-> Tiene cuatro etapas principales: Evaporación, Condensación, Precipitación y Escorrentía.
-
-Lo anterior va a generar:
-[Recuadro con fondo coloreado]
-El Ciclo del Agua
-Es el proceso por el cual el agua se mueve en la Tierra.
-Tiene cuatro etapas principales: Evaporación, Condensación, Precipitación y Escorrentía.
-[fin recuadro]
 
 ### Falso y Verdadero
-Usa una tabla con columnas Afirmación | V | F:
+Usa una tabla con columnas Afirmación | V | F. NUNCA la indentes.
+
+Ejemplo correcto:
+2. Responde verdadero o falso:
 
 | Afirmación | V | F |
 |:-----------|:-:|:-:|
-| El sol sale por el oeste | | |
 | El agua hierve a 100°C | | |
 
 ### Selección múltiple
 A. [ ] opción uno
 B. [ ] opción dos
-C. [ ] opción tres
-D. [ ] opción cuatro
 
 ### Fragmento de lectura
 > 📖 FRAGMENTO
@@ -85,5 +86,4 @@ D. [ ] opción cuatro
 > 🔢 GRILLA
 > \(3 \times 4 =\) ___
 > \(5 \times 6 =\) ___
-> \(7 \times 8 =\) ___
 ---

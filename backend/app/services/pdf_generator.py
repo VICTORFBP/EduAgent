@@ -48,9 +48,9 @@ def md_to_html(text: str) -> str:
         html
     )
 
-    # Recuadro
+    # Recuadro (permite etiquetas como RECUADRO, DIBUJO, ANÁLISIS, etc.)
     html = re.sub(
-        r'<blockquote>\s*<p>📦 RECUADRO\s*([\s\S]*?)</p>\s*</blockquote>',
+        r'<blockquote>\s*<p>📦\s*[A-ZÁÉÍÓÚÑ]+\s*([\s\S]*?)</p>\s*</blockquote>',
         lambda m: f'<div class="recuadro">{m.group(1).strip()}</div>',
         html
     )
@@ -90,13 +90,21 @@ def md_to_html(text: str) -> str:
 
     # Identificar tablas de Falso y Verdadero
     html = re.sub(
-        r'<table>([\s\S]*?<th[^>]*>\s*V\s*</th>\s*<th[^>]*>\s*F\s*</th>)',
+        r'<table>((?:(?!<table)[\s\S])*?<th[^>]*>\s*V\s*</th>\s*<th[^>]*>\s*F\s*</th>)',
         r'<table class="fv-tabla">\1',
         html,
         flags=re.IGNORECASE
     )
 
-    # Identificar tablas de completar
+    # Identificar cajas de respuesta
+    html = re.sub(
+        r'<table>((?:(?!<table)[\s\S])*?<th[^>]*>[\s\S]*?Escribe[\s\S]*?</th>)',
+        r'<table class="caja-respuesta">\1',
+        html,
+        flags=re.IGNORECASE
+    )
+
+    # Identificar tablas de completar (las que quedan)
     html = re.sub(
         r'<table>',
         r'<table class="tabla-completar">',
@@ -240,6 +248,7 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   border-collapse: collapse;
   margin: 6px 0 16px;
   page-break-inside: avoid;
+  border: 1.5px solid var(--ca);
 }
 .caja-respuesta th {
   background: var(--cl);
@@ -249,12 +258,9 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   font-weight: 700;
   text-align: left;
   padding: 5px 10px;
-  border: 1.5px solid var(--ca);
-  border-bottom: none;
+  border-bottom: 1.5px solid var(--ca);
 }
 .caja-respuesta td {
-  border: 1.5px solid var(--ca);
-  border-top: 1px dashed #bbb;
   height: 80px;
   padding: 0;
 }
@@ -276,11 +282,11 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
 
 /* ── COMPONENTE: Recuadro de fórmula o definición ── */
 .recuadro {
-  border: 2px solid var(--cp);
+  border: 1.5px solid var(--ca);
   border-radius: 4px;
   padding: 10px 16px;
   margin: 10px 0 16px;
-  background: var(--cl);
+  background: #fdfdfd;
   page-break-inside: avoid;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -302,6 +308,7 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   margin: 8px 0 16px;
   font-size: 10pt;
   page-break-inside: avoid;
+  border: 1px solid #bbb;
 }
 .tabla-completar th {
   background: var(--cp);
@@ -310,20 +317,19 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   font-size: 9pt;
   font-weight: 700;
   padding: 6px 10px;
-  border: 1px solid var(--cp);
-  text-align: center;
+  border: 1px solid #bbb;
+  text-align: left;
 }
 .tabla-completar td {
   border: 1px solid #bbb;
   padding: 6px 10px;
-  text-align: center;
+  text-align: left;
   height: 30px;
 }
 .tabla-completar td.vacia {
-  background: #f9f9f9;
+  background: #fdfdfd;
   border-bottom: 1.5px solid var(--ca);
 }
-.tabla-completar tr:first-child td { background: #f0f0f0; font-weight: 700; }
 
 /* ── COMPONENTE: Grilla de ejercicios ── */
 .grilla {
@@ -356,28 +362,34 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
   border-collapse: collapse;
   margin: 8px 0 16px;
   font-size: 10pt;
+  border: 1px solid #bbb;
 }
 .fv-tabla th {
   background: var(--cp);
   color: white;
   font-family: sans-serif;
   font-size: 9pt;
-  padding: 5px 10px;
-  border: 1px solid var(--cp);
+  font-weight: 700;
+  padding: 8px 10px;
+  border: 1px solid #bbb;
+  text-align: left;
+}
+.fv-tabla th:not(:first-child) {
   text-align: center;
+  width: 40px;
 }
 .fv-tabla td {
   border: 1px solid #bbb;
-  padding: 6px 10px;
+  padding: 8px 10px;
   vertical-align: middle;
 }
+.fv-tabla tr:nth-child(even) td { background: #fafafa; }
 .fv-tabla td.casilla {
   text-align: center;
-  width: 50px;
+  width: 40px;
   font-size: 14pt;
   color: #ccc;
 }
-.fv-tabla tr:nth-child(even) td { background: #fafafa; }
 
 /* ── COMPONENTE: Selección múltiple ── */
 .seleccion-multiple { margin: 4px 0 14px 8px; }
@@ -431,13 +443,25 @@ ul li { padding: 2px 4px; font-size: 10.5pt; }
 class PdfGeneratorService:
     """Generates PDF documents using Playwright (Chrome headless)."""
 
+    def _coerce_markdown(self, value) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            return "\n\n".join(self._coerce_markdown(item) for item in value if item)
+        if isinstance(value, dict):
+            import json
+            return json.dumps(value, indent=2, ensure_ascii=False)
+        return str(value)
+
     def _build_html(self, actividad: dict, plan: dict, grado: int) -> str:
-        titulo_raw   = actividad.get("titulo", "Actividad Evaluativa")
-        instrucciones_raw = actividad.get("instrucciones", "")
+        titulo_raw   = self._coerce_markdown(actividad.get("titulo", "Actividad Evaluativa"))
+        instrucciones_raw = self._coerce_markdown(actividad.get("instrucciones", ""))
         contenido_grados  = actividad.get("contenido_grados", {})
-        contenido_raw     = contenido_grados.get(str(grado),
-                              contenido_grados.get(grado, ""))
-        clave_raw    = actividad.get("clave_respuestas", "")
+        contenido_raw     = self._coerce_markdown(contenido_grados.get(str(grado),
+                              contenido_grados.get(grado, "")))
+        clave_raw    = self._coerce_markdown(actividad.get("clave_respuestas", ""))
 
         area  = plan.get("area", "")
         tema  = plan.get("tema", "")

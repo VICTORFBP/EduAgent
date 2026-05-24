@@ -29,56 +29,59 @@ NUNCA generes HTML, etiquetas, ni clases CSS.
 ## Componentes disponibles para el taller
 
 El sistema convierte tu Markdown a HTML automáticamente.
-Para activar componentes de diseño especiales, usa estas
-marcas exactas en el Markdown. El sistema las reconoce y
-aplica el CSS correspondiente.
+Para activar componentes de diseño especiales, usa estas marcas exactas.
+**REGLA CRÍTICA DE FORMATO:** ¡NUNCA INDENTES los componentes! Las marcas `[LINEAS:N]`, `> 📦 RECUADRO`, `> 📖 FRAGMENTO` y las tablas `|...|` deben ir SIEMPRE al inicio de la línea (cero espacios a la izquierda), incluso si están debajo de un ítem de lista enumerada.
+
+**INSTRUCCIÓN OBLIGATORIA PARA RESPUESTAS:**
+Cada pregunta abierta O pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos componentes visuales:
+- Si requiere 1-2 líneas: `[LINEAS:2]`
+- Si requiere 3-5 líneas: `[LINEAS:5]`
+- Si requiere párrafo largo: tabla markdown con caja de respuesta (ver abajo).
+- Si requiere espacio amplio de análisis o borrador: Usa un `> 📦 RECUADRO` con las instrucciones y debajo `[LINEAS:10]`.
+
+EJEMPLO CORRECTO DE RESPUESTA LARGA:
+1. Escribe tu opinión sobre la lectura principal.
+
+| **Escribe aquí tu respuesta:** |
+| :--- |
+| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+
+EJEMPLO CORRECTO DE ANÁLISIS:
+> 📦 ANÁLISIS
+> Desarrolla tu argumento principal en el siguiente espacio.
+
+[LINEAS:10]
+
+**INSTRUCCIÓN OBLIGATORIA DE FRAGMENTO:**
+Siempre incluye pedagógicamente un fragmento `> 📖 FRAGMENTO` literario o informativo contextualizado en el entorno para iniciar el taller.
 
 ### Caja de respuesta abierta
-Tamaño "media" (default), "alta" para producción escrita,
-"baja" para respuesta corta.
+Tamaño "media" (default), "alta" para producción escrita, "baja" para respuesta corta. NUNCA la indentes.
 
 | **Escribe aquí tu respuesta:** |
 | :--- |
 | &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
 
 ### Líneas para respuesta manuscrita
-Inserta el texto literal: [LINEAS:5]
-El número indica cuántas líneas generar (3 a 12).
+Inserta el texto literal: `[LINEAS:N]` (N = número de líneas, de 3 a 12). NUNCA lo indentes.
 
 ### Recuadro de fórmula o concepto clave
+Úsalo para destacar definiciones gramaticales o resúmenes. NUNCA lo indentes.
 
-Úsalo para destacar definiciones, propiedades o reglas gramaticales importantes.
-El contenido dentro del recuadro se rendereará con fondo coloreado y
-borde.
-
-Formato:
-
+Ejemplo correcto:
 > 📦 RECUADRO
-> **Título o concepto:**
-> Contenido aquí.
-> O múltiples líneas con ejemplos.
-
-Ejemplo real para lenguaje:
-
-> 📦 RECUADRO
-> **Los Sustantivos Propios**
-> Son aquellos que identifican a una persona, animal o lugar específico y se escriben siempre con mayúscula inicial.
-> Por ejemplo: Colombia, María, Bogotá.
-
-Lo anterior va a generar:
-[Recuadro con fondo coloreado]
-Los Sustantivos Propios
-Son aquellos que identifican a una persona, animal o lugar específico y se escriben siempre con mayúscula inicial.
-Por ejemplo: Colombia, María, Bogotá.
-[fin recuadro]
+> **Los Verbos**
+> Son palabras que expresan acciones o estados.
 
 ### Falso y Verdadero
-Usa una tabla con columnas Afirmación | V | F:
+Usa una tabla con columnas Afirmación | V | F. NUNCA la indentes.
+
+Ejemplo correcto:
+2. Responde verdadero o falso:
 
 | Afirmación | V | F |
 |:-----------|:-:|:-:|
-| El sol sale por el oeste | | |
-| El agua hierve a 100°C | | |
+| El sustantivo nombra objetos | | |
 
 ### Selección múltiple
 A. [ ] opción uno
