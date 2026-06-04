@@ -1,4 +1,11 @@
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["overview-headset-pouch.ngrok-free.dev"],
@@ -6,10 +13,10 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8000/:path*",
+        destination: "http://127.0.0.1:8000/:path*",
       },
     ];
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

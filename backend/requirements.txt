@@ -9,3 +9,5 @@ python-multipart>=0.0.9
 supabase>=2.0
 pymupdf>=1.23.0
 playwright>=1.40.0
+mistune>=3.0
+typst>=0.14.0

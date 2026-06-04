@@ -21,7 +21,7 @@ export function useEstudiantes() {
       if (!session) throw new Error("No session found");
 
       const data = await apiGet("/dashboard/estudiantes", session.access_token);
-      setEstudiantes(data);
+      setEstudiantes(data as Estudiante[]);
     } catch (err: any) {
       setError(err.message);
     } finally {

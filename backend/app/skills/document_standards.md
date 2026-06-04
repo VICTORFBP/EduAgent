@@ -1,26 +1,37 @@
-# Normas Generales de Formato para Documentos
+# Normas Generales de Formato — EduAgent (Typst PDF)
 
-## Tamaño y márgenes
+## Pipeline de salida
+El Markdown que generes se compilará con **Typst** para producir un PDF imprimible.
+El sistema convierte automáticamente el Markdown estructurado a los componentes visuales del PDF.
+
+## Papel y márgenes
 - Papel: **Carta** (216 × 279 mm / 8.5 × 11 in)
-- Márgenes: **2 cm** arriba/abajo, **2.5 cm** izquierda/derecha
+- Márgenes: 2 cm arriba/abajo, 2.5 cm izquierda/derecha (aplicados por el template)
 
 ## Tipografía
-- Fuente: Georgia / Times New Roman (serif)
-- Título principal: 20px, negrita, centrado
-- Subtítulos de sección: 15px, negrita, mayúsculas
-- Cuerpo: 13.5px, interlineado 1.55
+- Fuente: Sans-serif (Arial/Liberation Sans) — definida en el template
+- No es necesario especificar fuentes; el template las aplica automáticamente
+- Usa `**negrita**` y `*cursiva*` solo para énfasis real
 
-## Espaciado
-- Entre secciones: máximo 20px (no más de 1 línea en blanco)
-- Entre párrafos: 10px
-- Entre ítems de lista: 4px
-- Después del encabezado (datos del estudiante): 20px
-- PROHIBIDO: doble salto de línea consecutivo vacío. Usa un solo salto para separar bloques.
+## Densidad del contenido
+- El contenido debe llenar de manera natural al menos el 70% de la página
+- No incluyas saltos de línea vacíos consecutivos innecesarios
+- Cada sección debe tener entre 5 y 8 ítems de actividad por grado
+- Diferencia claramente el contenido de cada grado (no repitas ejercicios idénticos)
 
-## Distribución del contenido
-- El contenido debe llenar al menos el 70% de la página.
-- No dejar más de 1/3 de la página en blanco al final.
-- Las tablas deben generarse en Markdown y no deben romperse entre páginas de forma antiestética.
-- Si una sección no cabe completa, debe pasar a la página siguiente.
+## Separación de secciones
+- Separa secciones con `---` (línea horizontal)
+- Usa `## Nombre de Sección` para secciones principales y `### Nombre` para subsecciones
 
-**IMPORTANTE**: Aplica estas reglas al estructurar el Markdown, evitando saltos de línea innecesarios que arruinan la distribución al imprimir.
+## Encabezado del documento
+El template genera automáticamente el encabezado con:
+Nombre del estudiante | Grado | Fecha | Área | Tema | Nota
+
+No repliques este encabezado en el contenido.
+
+## PROHIBIDO absolutamente
+- Etiquetas HTML (`<br>`, `<b>`, `<div>`, `<style>`, `<table>`, etc.)
+- CSS o clases de estilo
+- `&nbsp;` u otras entidades HTML
+- Incluir las respuestas correctas en `contenido_grados`
+- Usar `#` nivel 1 de encabezado (reservado para el título principal)

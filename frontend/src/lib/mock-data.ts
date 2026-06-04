@@ -14,22 +14,24 @@ export const MOCK_DOCENTE: Docente = {
   id: "d1a2b3c4-5678-90ab-cdef-111111111111",
   nombre: "María Fernanda López",
   email: "maria.lopez@elcrucero.edu.co",
+  rol: "docente",
+  sede_id: "s1",
   grados_asignados: [1, 2, 3],
   areas_asignadas: ["Matemáticas", "Lenguaje", "Ciencias Naturales"],
   created_at: "2026-03-01T08:00:00Z",
 };
 
 export const MOCK_ESTUDIANTES: Estudiante[] = [
-  { id: "s1", nombre: "Juan Camilo Ortiz", grado: 1, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 3.8 },
-  { id: "s2", nombre: "Valentina Muñoz", grado: 1, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 4, promedio_notas: 4.2 },
-  { id: "s3", nombre: "Santiago Rivera", grado: 2, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 6, promedio_notas: 3.5 },
-  { id: "s4", nombre: "Isabella Caicedo", grado: 2, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 4.5 },
-  { id: "s5", nombre: "Mateo Hernández", grado: 3, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 3, promedio_notas: 3.2 },
-  { id: "s6", nombre: "Sofía Arboleda", grado: 3, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 7, promedio_notas: 4.8 },
-  { id: "s7", nombre: "Daniel Gómez", grado: 1, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 4, promedio_notas: 3.9 },
-  { id: "s8", nombre: "Luciana Paz", grado: 2, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 4.1 },
-  { id: "s9", nombre: "Andrés Velasco", grado: 3, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 2, promedio_notas: 3.6 },
-  { id: "s10", nombre: "Camila Torres", grado: 1, docente_id: MOCK_DOCENTE.id, created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 6, promedio_notas: 4.4 },
+  { id: "s1", nombre: "Juan Camilo Ortiz", grado: 1, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 3.8 },
+  { id: "s2", nombre: "Valentina Muñoz", grado: 1, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 4, promedio_notas: 4.2 },
+  { id: "s3", nombre: "Santiago Rivera", grado: 2, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 6, promedio_notas: 3.5 },
+  { id: "s4", nombre: "Isabella Caicedo", grado: 2, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 4.5 },
+  { id: "s5", nombre: "Mateo Hernández", grado: 3, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 3, promedio_notas: 3.2 },
+  { id: "s6", nombre: "Sofía Arboleda", grado: 3, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 7, promedio_notas: 4.8 },
+  { id: "s7", nombre: "Daniel Gómez", grado: 1, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 4, promedio_notas: 3.9 },
+  { id: "s8", nombre: "Luciana Paz", grado: 2, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 5, promedio_notas: 4.1 },
+  { id: "s9", nombre: "Andrés Velasco", grado: 3, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 2, promedio_notas: 3.6 },
+  { id: "s10", nombre: "Camila Torres", grado: 1, docente_id: MOCK_DOCENTE.id, sede_id: "s1", created_at: "2026-03-01T08:00:00Z", evaluaciones_count: 6, promedio_notas: 4.4 },
 ];
 
 export const MOCK_PLANEACIONES: Planeacion[] = [

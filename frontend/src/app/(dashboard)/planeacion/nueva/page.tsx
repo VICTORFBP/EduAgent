@@ -172,15 +172,43 @@ export default function NuevaPlaneacionPage() {
             <div className="space-y-2">
               <Label htmlFor="tipo-actividad" className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                Tipo de actividad o instrucciones específicas
+                Tipo de actividad
                 <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
               </Label>
+              {/* Quick-select chips */}
+              <div className="flex flex-wrap gap-2 pb-1">
+                {([
+                  { label: "Taller abierto", value: "" },
+                  { label: "Selección múltiple", value: "Preguntas de selección múltiple con 4 opciones A B C D." },
+                  {
+                    label: "📋 Prueba Estandarizada",
+                    value: "prueba estandarizada — selección múltiple tipo SABER, entre 15 y 20 preguntas con 4 opciones A B C D, organizadas por competencias.",
+                  },
+                  { label: "V/F + Selección", value: "Preguntas de verdadero/falso y selección múltiple." },
+                  { label: "Resolución de problemas", value: "Ejercicios de resolución de problemas con espacio para el procedimiento." },
+                ] as const).map(({ label, value }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setTipoActividad(value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      tipoActividad === value
+                        ? label.includes("Prueba")
+                          ? "bg-violet-500/15 border-violet-500/40 text-violet-400"
+                          : "bg-primary/15 border-primary/30 text-primary"
+                        : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <Textarea
                 id="tipo-actividad"
                 placeholder={`Ej: Quiero 4 ejercicios de sumas con espacio para el procedimiento y 2 problemas de resolución.\nEj: Un cuento de una página con preguntas de verdadero/falso y selección múltiple.`}
                 value={tipoActividad}
                 onChange={(e) => setTipoActividad(e.target.value)}
-                className="bg-white/5 border-white/10 min-h-[110px] text-sm"
+                className="bg-white/5 border-white/10 min-h-[80px] text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 La IA usará estas instrucciones para personalizar el formato de la actividad generada.

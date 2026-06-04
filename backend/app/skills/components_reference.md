@@ -1,73 +1,152 @@
-## Componentes disponibles para el taller
+# Referencia de Componentes — EduAgent (Typst PDF)
 
-El sistema convierte tu Markdown a HTML automáticamente.
-Para activar componentes de diseño especiales, usa estas marcas exactas.
-**REGLA CRÍTICA DE FORMATO:** ¡NUNCA INDENTES los componentes! Las marcas `[LINEAS:N]`, `> 📦 RECUADRO`, `> 📖 FRAGMENTO` y las tablas `|...|` deben ir SIEMPRE al inicio de la línea (cero espacios a la izquierda), incluso si están debajo de un ítem de lista enumerada.
+El sistema convierte tu Markdown directamente a un **PDF generado con Typst**.
+Escribe SOLO Markdown puro usando los patrones indicados aquí.
+NUNCA escribas HTML, etiquetas `<div>`, `<span>`, `<style>`, ni CSS.
 
-**INSTRUCCIÓN OBLIGATORIA PARA RESPUESTAS:**
-Cada pregunta abierta O pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos componentes visuales:
-- Si requiere 1-2 líneas: `[LINEAS:2]`
-- Si requiere 3-5 líneas: `[LINEAS:5]`
-- Si requiere párrafo largo: tabla markdown con caja de respuesta (ver abajo).
-- Si requiere espacio amplio (dibujo, borrador, análisis, procedimiento): Usa un `> 📦 RECUADRO` con las instrucciones y debajo `[LINEAS:10]`.
+---
 
-EJEMPLO CORRECTO DE RESPUESTA LARGA:
-1. Escribe aquí tu justificación o respuesta larga.
+## REGLA CRÍTICA DE INDENTACIÓN
 
-| **Escribe aquí tu respuesta:** |
-| :--- |
-| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+Los bloques especiales `[LINEAS:N]`, `> 📦 RECUADRO`, `> 📖 FRAGMENTO`, `> 🎨 DIBUJO`
+y las tablas `|...|` deben ir **SIEMPRE al inicio de la línea (cero espacios a la izquierda)**,
+incluso si están debajo de un ítem de lista enumerada.
 
-EJEMPLO CORRECTO DE TAREA ESPECIAL (DIBUJO/ANÁLISIS):
-> 📦 RECUADRO
-> Desarrolla aquí tu esquema, análisis o dibujo.
+---
 
-[LINEAS:10]
+## Notación matemática (LaTeX)
 
-**INSTRUCCIÓN OBLIGATORIA DE FRAGMENTO:**
-Siempre incluye pedagógicamente un fragmento `> 📖 FRAGMENTO` contextualizado para enriquecer el taller.
+Usa SOLO estos delimitadores:
+- Inline: `$expresión$`  → ej. `$2^3 = 8$`, `$\sqrt{16} = 4$`, `$\frac{3}{8}$`
+- Bloque (ecuación centrada): `$$expresión$$`  → ej. `$$\frac{a+b}{c} = d$$`
 
-### Caja de respuesta abierta
-Tamaño "media" (default), "alta" para producción escrita, "baja" para respuesta corta. NUNCA la indentes.
+NUNCA uses: `\( \)`, `\[ \]`, ni texto plano como "2 elevado a 4" o "raíz cuadrada de 9".
 
-| **Escribe aquí tu respuesta:** |
-| :--- |
-| &nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp;<br>&nbsp; |
+---
 
-### Líneas para respuesta manuscrita
-Inserta el texto literal: `[LINEAS:N]` (N = número de líneas, de 3 a 12). NUNCA lo indentes.
+## Espacios de respuesta (OBLIGATORIO para preguntas abiertas)
 
-### Recuadro de fórmula o concepto clave
-Úsalo para destacar definiciones o resúmenes. NUNCA lo indentes.
+Cada pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos:
+
+| Necesidad | Marca exacta |
+|-----------|-------------|
+| 1–2 líneas cortas | `[LINEAS:2]` |
+| 3–5 líneas (párrafo) | `[LINEAS:5]` |
+| Respuesta larga (análisis, ensayo) | `[LINEAS:8]` |
+| Espacio amplio (dibujo, esquema) | `> 🎨 DIBUJO` + instrucción |
 
 Ejemplo correcto:
-> 📦 RECUADRO
-> **Concepto Importante**
-> Contenido aquí.
+```
+1. Explica con tus palabras qué es la fotosíntesis.
+[LINEAS:5]
+```
 
-### Falso y Verdadero
-Usa una tabla con columnas Afirmación | V | F. NUNCA la indentes.
+---
 
-Ejemplo correcto:
-2. Responde verdadero o falso:
+## Selección múltiple (OBLIGATORIO con casilla)
 
+Usa SIEMPRE este formato exacto con mayúsculas y casilla `[ ]`:
+
+```
+A. [ ] Primera opción
+B. [ ] Segunda opción
+C. [ ] Tercera opción
+D. [ ] Cuarta opción
+```
+
+NUNCA uses `a)`, `b)`, `A)` ni ningún formato sin casilla. La casilla `[ ]` es obligatoria.
+
+---
+
+## Verdadero o Falso (OBLIGATORIO como tabla Markdown)
+
+Usa SIEMPRE este formato de tabla con la cabecera exacta `Afirmación | V | F`:
+
+```
 | Afirmación | V | F |
 |:-----------|:-:|:-:|
+| La raíz cuadrada de 25 es 5 | | |
+| $2^4 = 16$ | | |
 | El agua hierve a 100°C | | |
+```
 
-### Selección múltiple
-A. [ ] opción uno
-B. [ ] opción dos
-C. [ ] opción tres
-D. [ ] opción cuatro
+NUNCA escribas "Afirmación V F" como texto plano. SIEMPRE usa la tabla Markdown.
 
-### Fragmento de lectura
-> 📖 FRAGMENTO
-> Texto del fragmento aquí, en cursiva con borde lateral.
-
-### Grilla de ejercicios (3 columnas)
-> 🔢 GRILLA
-> \(3 \times 4 =\) ___
-> \(5 \times 6 =\) ___
-> \(7 \times 8 =\) ___
 ---
+
+## Tablas de completar
+
+Usa tablas Markdown estándar. El sistema las renderiza con cabecera coloreada automáticamente.
+
+```
+| Número | Potencia | Resultado |
+|--------|----------|-----------|
+| 9      | $3^2$    |           |
+| 16     | $4^2$    |           |
+```
+
+---
+
+## Recuadro destacado (concepto, nota, advertencia)
+
+```
+> 📦 RECUADRO
+> **Título opcional**
+> Contenido del recuadro aquí.
+```
+
+---
+
+## Fragmento de lectura
+
+Siempre que sea pedagógicamente útil, incluye un fragmento de lectura contextualizado en Colombia:
+
+```
+> 📖 FRAGMENTO
+> Texto del fragmento, puede tener varios párrafos.
+> Se mostrará en cursiva con borde lateral.
+```
+
+---
+
+## Espacio de dibujo / esquema
+
+```
+> 🎨 DIBUJO
+> Dibuja aquí el ciclo del agua.
+```
+
+---
+
+## Grilla de ejercicios (3 columnas)
+
+Para ejercicios cortos en paralelo (ideal para operaciones matemáticas):
+
+```
+> 📦 GRILLA
+> $3 \times 4 =$ ___
+> $5 \times 6 =$ ___
+> $7 \times 8 =$ ___
+```
+
+---
+
+## Encabezados de sección (niveles)
+
+- `## Sección principal` → Encabezado grande con línea
+- `### Subsección` → Encabezado secundario con línea fina
+
+No uses `#` nivel 1, está reservado para el título del documento.
+
+---
+
+## PROHIBIDO
+
+- HTML de cualquier tipo (`<br>`, `<b>`, `<table>`, `<style>`, etc.)
+- Estilos CSS o clases
+- Celdas con `&nbsp;` (usa celdas vacías normales `| |`)
+- Texto de placeholder como "Respuesta del estudiante aquí"
+- Incluir respuestas correctas en `contenido_grados`
+- Usar `\( \)` o `\[ \]` para matemáticas (usa `$` y `$$`)
+- Selección múltiple sin casilla `[ ]`
+- Verdadero/Falso como texto plano (siempre tabla)

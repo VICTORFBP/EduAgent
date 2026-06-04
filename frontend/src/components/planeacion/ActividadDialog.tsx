@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Copy, Printer, ChevronDown, Download, Maximize2 } from "lucide-react";
+import { BookOpen, Copy, Printer, ChevronDown, Download, Maximize2, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +31,7 @@ import {
 } from "@/lib/actividad-markdown";
 import { openActividadPrintWindow } from "@/lib/actividad-print";
 
-export type ActividadViewMode = "document" | "teacher";
+export type ActividadViewMode = "document" | "teacher" | "docente-prueba";
 
 export interface ActividadDialogPlan {
   id?: string;
@@ -65,6 +65,25 @@ export function ActividadDialog({
 
   const actividad = plan.actividad_generada;
   const actividadGrades = actividad ? getActividadGradesWithContent(plan) : [];
+
+  // Detect prueba estandarizada by tipo_actividad field
+  const isPruebaEstandarizada = (() => {
+    const tipo = (plan as any).tipo_actividad ?? "";
+    const t = tipo.toLowerCase();
+    return t.includes("prueba") && t.includes("estandar");
+  })();
+
+  // Build the PDF url based on activity type
+  const buildPdfUrl = (grade: number | null | undefined, docenteMode = false) => {
+    if (!grade) return null;
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    if (isPruebaEstandarizada) {
+      return `${base}/planeacion/${plan.id}/actividad/prueba-pdf?grado=${grade}${
+        docenteMode ? "&docente=true" : ""
+      }`;
+    }
+    return `${base}/planeacion/${plan.id}/actividad/pdf?grado=${grade}#toolbar=0&navpanes=0`;
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -148,23 +167,38 @@ export function ActividadDialog({
                 : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
             }`}
           >
-            Documento
+            {isPruebaEstandarizada ? "Prueba" : "Documento"}
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("teacher")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              viewMode === "teacher"
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
-            }`}
-          >
-            Solucionario (Docente)
-          </button>
+          {isPruebaEstandarizada ? (
+            <button
+              type="button"
+              onClick={() => setViewMode("docente-prueba")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                viewMode === "docente-prueba"
+                  ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
+              }`}
+            >
+              <ClipboardList className="inline w-3 h-3 mr-1" />
+              Clave Docente
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setViewMode("teacher")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                viewMode === "teacher"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10"
+              }`}
+            >
+              Solucionario (Docente)
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 pr-1 min-h-0">
-          {viewMode === "document" ? (
+          {(viewMode === "document" || viewMode === "docente-prueba") ? (
             <div className="space-y-4 h-full flex flex-col">
               {actividadGrades.length >= 2 && (
                 <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-neutral-900/90 py-2 -mt-2">
@@ -189,13 +223,18 @@ export function ActividadDialog({
                   <p className="text-sm text-muted-foreground p-8 text-center mt-20">
                     Selecciona un grado.
                   </p>
-                ) : (
-                  <iframe 
-                    src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}#toolbar=0&navpanes=0`}
-                    className="w-full h-full border-0 bg-white"
-                    title={`PDF Actividad Grado ${displayGrade}`}
-                  />
-                )}
+                ) : (() => {
+                    const isDocente = viewMode === "docente-prueba";
+                    const pdfUrl = buildPdfUrl(displayGrade, isDocente);
+                    return (
+                      <iframe
+                        src={pdfUrl ?? ""}
+                        className="w-full h-full border-0 bg-white"
+                        title={`PDF ${isDocente ? "Clave Docente" : "Actividad"} Grado ${displayGrade}`}
+                      />
+                    );
+                  })()
+                }
               </div>
             </div>
           ) : (
@@ -245,13 +284,13 @@ export function ActividadDialog({
             >
               Cerrar
             </Button>
-            {viewMode === "document" && (
+          {(viewMode === "document" || viewMode === "docente-prueba") && (
               <>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}`;
-                    window.open(url, "_blank");
+                    const url = buildPdfUrl(displayGrade, viewMode === "docente-prueba");
+                    if (url) window.open(url.replace(/#.*$/, ""), "_blank");
                   }}
                   className="border-white/10 text-xs text-primary bg-primary/10 hover:bg-primary/20"
                 >
@@ -261,10 +300,14 @@ export function ActividadDialog({
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/planeacion/${plan.id}/actividad/pdf?grado=${displayGrade}`;
+                    const url = buildPdfUrl(displayGrade, viewMode === "docente-prueba");
+                    if (!url) return;
+                    const cleanUrl = url.replace(/#.*$/, "");
                     const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `Actividad_Grado_${displayGrade}.pdf`;
+                    a.href = cleanUrl;
+                    a.download = isPruebaEstandarizada
+                      ? `Prueba_Grado_${displayGrade}${viewMode === "docente-prueba" ? "_clave" : ""}.pdf`
+                      : `Actividad_Grado_${displayGrade}.pdf`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -274,39 +317,6 @@ export function ActividadDialog({
                   <Download className="w-4 h-4 mr-1" />
                   Descargar PDF
                 </Button>
-                {actividadGrades.length >= 2 ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex">
-                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs">
-                        <Printer className="w-4 h-4 mr-1" />
-                        Imprimir
-                        <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[10rem]">
-                      {actividadGrades.map((g) => (
-                        <DropdownMenuItem
-                          key={g}
-                          onClick={() => handlePrint(g)}
-                        >
-                          Grado {g}
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handlePrintAll}>
-                        Todos los grados
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button
-                    onClick={() => handlePrint()}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-                  >
-                    <Printer className="w-4 h-4 mr-1" />
-                    Imprimir
-                  </Button>
-                )}
               </>
             )}
           </div>

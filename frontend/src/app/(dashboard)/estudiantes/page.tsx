@@ -125,7 +125,7 @@ export default function EstudiantesPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-sky-500/20 flex items-center justify-center">
                       <span className="text-sm font-bold text-primary">
-                        {student.nombre.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                        {student.nombre.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
                       </span>
                     </div>
                     <div>

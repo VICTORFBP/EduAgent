@@ -74,7 +74,7 @@ export function prepareActividadContent(raw: unknown): PreparedActividadContent 
   return { content: normalized.trim(), format: "markdown" };
 }
 
-const SANITIZE_CONFIG: DOMPurify.Config = {
+const SANITIZE_CONFIG: any = {
   ALLOWED_TAGS: [
     "section",
     "article",
@@ -122,5 +122,5 @@ const SANITIZE_CONFIG: DOMPurify.Config = {
 
 export function sanitizeActividadHtml(html: string): string {
   if (!html) return "";
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  return DOMPurify.sanitize(html, SANITIZE_CONFIG) as unknown as string;
 }

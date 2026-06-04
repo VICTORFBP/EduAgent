@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ActividadDialog } from "@/components/planeacion/ActividadDialog";
+import dynamic from "next/dynamic";
 import { getActividadGradesWithContent } from "@/components/planeacion/ActividadDocument";
+
+const ActividadDialog = dynamic(
+  () => import("@/components/planeacion/ActividadDialog").then((mod) => mod.ActividadDialog),
+  { ssr: false }
+);
 
 export default function PlaneacionDetailPage({
   params,
@@ -73,6 +78,13 @@ export default function PlaneacionDetailPage({
   const [isActividadDialogOpen, setIsActividadDialogOpen] = useState(false);
   const [actividadInitialGrade, setActividadInitialGrade] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setIsPageLoading(true);
@@ -199,16 +211,46 @@ export default function PlaneacionDetailPage({
   const handleGenerateActividad = async () => {
     setIsGeneratingActividad(true);
     try {
-      const updatedPlan = await generateActividad(id);
-      setPlan(updatedPlan);
-      const grades = getActividadGradesWithContent(updatedPlan);
-      setActividadInitialGrade(grades[0] ?? updatedPlan.grados?.[0] ?? null);
+      const response = await generateActividad(id);
+      
+      if (response?.status === "processing") {
+        toast.info("Generando actividad en segundo plano. Esto puede tardar unos segundos...");
+        
+        let attempts = 0;
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            attempts++;
+            const updatedPlan = await fetchPlaneacion(id);
+            if (updatedPlan.actividad_generada) {
+              if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+              setPlan(updatedPlan);
+              const grades = getActividadGradesWithContent(updatedPlan);
+              setActividadInitialGrade(grades[0] ?? updatedPlan.grados?.[0] ?? null);
+              setIsActividadDialogOpen(true);
+              setIsGeneratingActividad(false);
+              toast.success("Actividad evaluativa generada con éxito");
+            } else if (attempts > 40) { // Timeout after 2 minutes
+              if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+              setIsGeneratingActividad(false);
+              toast.error("La generación tomó demasiado tiempo. Intenta recargar la página más tarde.");
+            }
+          } catch (err) {
+            console.error("Error polling planeacion:", err);
+          }
+        }, 3000);
+        return;
+      }
+
+      // Si no es asíncrono (respusta inmediata)
+      setPlan(response);
+      const grades = getActividadGradesWithContent(response);
+      setActividadInitialGrade(grades[0] ?? response.grados?.[0] ?? null);
       setIsActividadDialogOpen(true);
       toast.success("Actividad evaluativa generada con éxito");
+      setIsGeneratingActividad(false);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Error al generar la actividad");
-    } finally {
       setIsGeneratingActividad(false);
     }
   };
