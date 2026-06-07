@@ -1,6 +1,7 @@
 """EduAgent — Documentos Router."""
 
 import logging
+import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
@@ -73,56 +74,84 @@ async def upload_documento(
                    f"Usa PDF, JPG, PNG o WEBP.",
         )
 
-    file_bytes = await archivo.read()
-    if content_type == "application/pdf":
-        file_bytes = compress_pdf(file_bytes)
+    t_start = time.time()
+    exitoso = False
+    try:
+        file_bytes = await archivo.read()
+        if content_type == "application/pdf":
+            file_bytes = compress_pdf(file_bytes)
 
-    # Enforce file size limit for docentes
-    if not is_admin:
-        size_mb = len(file_bytes) / (1024 * 1024)
-        if size_mb > DOCENTE_MAX_FILE_MB:
-            raise HTTPException(
-                status_code=413,
-                detail=f"Archivo demasiado grande ({size_mb:.1f} MB). "
-                       f"Límite: {DOCENTE_MAX_FILE_MB} MB.",
-            )
-        # Enforce document count limit
-        doc_count = await supabase_service.get_docente_documento_count(user_id)
-        if doc_count >= DOCENTE_MAX_DOCS:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Has alcanzado el límite de {DOCENTE_MAX_DOCS} documentos. "
-                       f"Elimina alguno antes de subir otro.",
-            )
+        # Enforce file size limit for docentes
+        if not is_admin:
+            size_mb = len(file_bytes) / (1024 * 1024)
+            if size_mb > DOCENTE_MAX_FILE_MB:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Archivo demasiado grande ({size_mb:.1f} MB). "
+                           f"Límite: {DOCENTE_MAX_FILE_MB} MB.",
+                )
+            # Enforce document count limit
+            doc_count = await supabase_service.get_docente_documento_count(user_id)
+            if doc_count >= DOCENTE_MAX_DOCS:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Has alcanzado el límite de {DOCENTE_MAX_DOCS} documentos. "
+                           f"Elimina alguno antes de subir otro.",
+                )
 
-    filename = f"{uuid.uuid4()}_{archivo.filename}"
-    storage_path = await storage_service.upload_documento(
-        file_bytes, filename, user_id, content_type
-    )
-
-    doc_data = {
-        "id": str(uuid.uuid4()),
-        "docente_id": user_id,
-        "nombre": nombre,
-        "tipo": "MEN_OFICIAL" if is_admin else "DOCENTE_CUSTOM",
-        "storage_path": storage_path,
-        "area": area,
-        "grado": grado,
-        "vectorizado": False,
-    }
-    doc = await supabase_service.create_documento(doc_data)
-
-    # Only admin documents get vectorized
-    if is_admin:
-        background_tasks.add_task(
-            _trigger_ingesta_background,
-            doc_data["id"],
-            storage_path,
-            area,
-            grado,
+        filename = f"{uuid.uuid4()}_{archivo.filename}"
+        storage_path = await storage_service.upload_documento(
+            file_bytes, filename, user_id, content_type
         )
 
-    return doc
+        doc_data = {
+            "id": str(uuid.uuid4()),
+            "docente_id": user_id,
+            "nombre": nombre,
+            "tipo": "MEN_OFICIAL" if is_admin else "DOCENTE_CUSTOM",
+            "storage_path": storage_path,
+            "area": area,
+            "grado": grado,
+            "vectorizado": False,
+        }
+        doc = await supabase_service.create_documento(doc_data)
+
+        # Only admin documents get vectorized
+        if is_admin:
+            background_tasks.add_task(
+                _trigger_ingesta_background,
+                doc_data["id"],
+                storage_path,
+                area,
+                grado,
+            )
+
+        exitoso = True
+        return doc
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading documento: {e}")
+        raise
+    finally:
+        duracion_ms = int((time.time() - t_start) * 1000)
+        try:
+            await supabase_service.log_interaction({
+                "docente_id": user_id,
+                "modulo": "documentos",
+                "accion": "cargar",
+                "duracion_ms": duracion_ms,
+                "tokens_usados": 0,
+                "exitoso": exitoso,
+                "metadata": {
+                    "nombre": nombre,
+                    "area": area,
+                    "grado": grado,
+                    "tipo": "MEN_OFICIAL" if is_admin else "DOCENTE_CUSTOM",
+                },
+            })
+        except Exception as log_err:
+            logger.warning(f"log_interaction failed (non-critical): {log_err}")
 
 
 # ──────────────────────────────────────────────

@@ -52,8 +52,12 @@ function QueryParamHandler({ setPlaneacionId, setGrado, setArea, setTipo }: any)
 export default function NuevaEvaluacionPage() {
   const { estudiantes } = useEstudiantes();
   const { processEvaluacion } = useEvaluaciones();
-  const { planeaciones } = usePlaneaciones();
+  const { planeaciones, fetchPlaneaciones } = usePlaneaciones();
   
+  useEffect(() => {
+    fetchPlaneaciones();
+  }, [fetchPlaneaciones]);
+
   const [planeacionId, setPlaneacionId] = useState<string>("none");
   const [grado, setGrado] = useState<string>("");
   const [tipo, setTipo] = useState("");
@@ -178,13 +182,19 @@ export default function NuevaEvaluacionPage() {
               </p>
               <Select value={planeacionId} onValueChange={handlePlaneacionChange}>
                 <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="Seleccionar planeación..." />
+                  <SelectValue placeholder="Seleccionar planeación...">
+                    {planeacionId === "none"
+                      ? "Sin vincular (Evaluación manual)"
+                      : selectedPlan
+                        ? `${selectedPlan.tema} (${selectedPlan.area})`
+                        : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin vincular (Evaluación manual)</SelectItem>
                   {planeaciones.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.tema} ({p.area})
+                      {`${p.tema} (${p.area})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -254,12 +264,16 @@ export default function NuevaEvaluacionPage() {
               <Label>Estudiante</Label>
               <Select value={estudianteId} onValueChange={(v) => v && setEstudianteId(v)}>
                 <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="Selecciona" />
+                  <SelectValue placeholder="Selecciona">
+                    {estudianteId && estudiantes.find(s => s.id === estudianteId)
+                      ? `${estudiantes.find(s => s.id === estudianteId)!.nombre} (G${estudiantes.find(s => s.id === estudianteId)!.grado})`
+                      : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {estudiantes.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.nombre} (G{s.grado})
+                      {`${s.nombre} (G${s.grado})`}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -148,6 +148,20 @@ export interface InteractionLog {
   created_at: string;
 }
 
+// ---- Métricas del Piloto ----
+export interface PilotMetrics {
+  tiempo_promedio_planeacion_ms: number;
+  tiempo_ahorrado_horas: number;
+  tasa_alineacion_men: number;        // 0-100
+  tasa_correccion_rag: number;        // 0-100
+  tasa_exito_ocr: number;             // 0-100
+  total_planeaciones: number;
+  total_evaluaciones: number;
+  total_evaluaciones_ok: number;
+  total_planeaciones_validadas: number;
+  total_planeaciones_corregidas: number;
+}
+
 // ---- Áreas y constantes ----
 export const AREAS = [
   "Matemáticas",

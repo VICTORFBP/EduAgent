@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Shield, UserPlus, Users, GraduationCap, Mail, Key,
   MapPin, PlusCircle, Trash2, ChevronDown, ChevronUp,
-  Building2, Loader2,
+  Building2, Loader2, BarChart2, ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -233,20 +234,29 @@ export default function AdminPage() {
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3 animate-slide-up">
-        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-          <Shield className="w-6 h-6 text-primary" />
+      <div className="flex items-start justify-between gap-4 animate-slide-up">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+            <Shield className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Panel de Administración</h2>
+            <p className="text-muted-foreground text-sm">
+              Gestiona sedes, docentes y estudiantes de la institución
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-bold">Panel de Administración</h2>
-          <p className="text-muted-foreground text-sm">
-            Gestiona sedes, docentes y estudiantes de la institución
-          </p>
-        </div>
+        <Link href="/admin/metricas">
+          <Button variant="outline" size="sm" className="gap-2 border-violet-500/30 text-violet-400 hover:bg-violet-500/10 hover:text-violet-300">
+            <BarChart2 className="w-4 h-4" />
+            Métricas del Piloto
+            <ArrowRight className="w-3 h-3" />
+          </Button>
+        </Link>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 animate-slide-up delay-100">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-slide-up delay-100">
         {[
           { label: "Sedes", value: sedes.length, icon: Building2, color: "text-primary" },
           { label: "Docentes", value: docentes.filter(d => d.rol !== "admin").length, icon: Users, color: "text-emerald-500" },
@@ -262,6 +272,18 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         ))}
+        <Link href="/admin/metricas" className="block">
+          <Card className="glass-card border-violet-500/20 hover:border-violet-500/40 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer group h-full">
+            <CardContent className="p-4 flex items-center gap-3 h-full">
+              <BarChart2 className="w-6 h-6 text-violet-400 group-hover:text-violet-300 transition-colors" />
+              <div>
+                <p className="text-sm font-semibold text-violet-400 group-hover:text-violet-300">Métricas</p>
+                <p className="text-xs text-muted-foreground">Ver piloto</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-violet-400/50 group-hover:text-violet-300 group-hover:translate-x-1 transition-all ml-auto" />
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Tabs defaultValue="sedes" className="animate-slide-up delay-200">

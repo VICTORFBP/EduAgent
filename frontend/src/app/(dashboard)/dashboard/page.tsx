@@ -5,13 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   BookOpen, ClipboardCheck, Clock, CheckCircle,
   FolderOpen, Users, TrendingUp, AlertCircle,
-  FileText, MessageSquare, ArrowRight, Loader2,
+  FileText, MessageSquare, ArrowRight, Loader2, BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { apiGet } from "@/lib/api";
-import type { DashboardMetricas, ActividadReciente } from "@/lib/types";
+import type { DashboardMetricas, ActividadReciente, PilotMetrics } from "@/lib/types";
 
 const QUICK_ACTIONS = [
   { label: "Nueva Planeación", href: "/planeacion/nueva", icon: BookOpen, color: "text-emerald-500" },
@@ -46,9 +46,17 @@ const DEFAULT_METRICAS: DashboardMetricas = {
   documentos_cargados: 0, estudiantes_total: 0,
 };
 
+const DEFAULT_PILOT: PilotMetrics = {
+  tiempo_promedio_planeacion_ms: 0, tiempo_ahorrado_horas: 0,
+  tasa_alineacion_men: 0, tasa_correccion_rag: 0, tasa_exito_ocr: 0,
+  total_planeaciones: 0, total_evaluaciones: 0, total_evaluaciones_ok: 0,
+  total_planeaciones_validadas: 0, total_planeaciones_corregidas: 0,
+};
+
 export default function DashboardPage() {
   const [docente, setDocente] = useState<{ nombre: string } | null>(null);
   const [metricas, setMetricas] = useState<DashboardMetricas>(DEFAULT_METRICAS);
+  const [pilot, setPilot] = useState<PilotMetrics>(DEFAULT_PILOT);
   const [actividad, setActividad] = useState<ActividadReciente[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,12 +73,14 @@ export default function DashboardPage() {
 
       // Fetch real metrics and activity
       try {
-        const [m, a] = await Promise.all([
+        const [m, a, p] = await Promise.all([
           apiGet<DashboardMetricas>("/dashboard/metricas", token),
           apiGet<ActividadReciente[]>("/dashboard/actividad", token),
+          apiGet<PilotMetrics>("/dashboard/metricas-piloto", token),
         ]);
         setMetricas(m);
         setActividad(a);
+        setPilot(p);
       } catch {
         // keep defaults on error
       } finally {
@@ -82,8 +92,8 @@ export default function DashboardPage() {
   const METRIC_CARDS = [
     { label: "Planeaciones", value: metricas.planeaciones_mes, icon: BookOpen, gradient: "from-emerald-500 to-emerald-600", change: "Total generadas", href: "/planeacion" },
     { label: "Evaluaciones procesadas", value: metricas.evaluaciones_procesadas, icon: ClipboardCheck, gradient: "from-sky-500 to-sky-600", change: "Por Gemini Vision", href: "/evaluacion" },
-    { label: "Horas ahorradas", value: `${metricas.tiempo_ahorrado_horas}h`, icon: Clock, gradient: "from-amber-500 to-orange-500", change: "Estimado", href: "/dashboard" },
-    { label: "Alineación MEN", value: `${metricas.tasa_alineacion_men}%`, icon: CheckCircle, gradient: "from-violet-500 to-purple-600", change: "Meta: ≥80%", href: "/dashboard" },
+    { label: "Horas ahorradas", value: `${pilot.tiempo_ahorrado_horas}h`, icon: Clock, gradient: "from-amber-500 to-orange-500", change: "vs 2.5h manual", href: "/dashboard" },
+    { label: "Alineación MEN", value: `${pilot.tasa_alineacion_men}%`, icon: CheckCircle, gradient: "from-violet-500 to-purple-600", change: "Meta: ≥80%", href: "/dashboard" },
   ];
 
   return (
@@ -183,7 +193,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <Card className="glass-card border-white/5 animate-slide-up delay-400">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/10">
@@ -206,18 +216,33 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="glass-card border-white/5 col-span-2 lg:col-span-1 animate-slide-up delay-500">
+        <Card className="glass-card border-white/5 animate-slide-up delay-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Tasa de alineación MEN</span>
+              <span className="text-xs text-muted-foreground">Éxito OCR</span>
+              <Badge variant="secondary" className="text-sky-500 bg-sky-500/10 text-xs">Evaluaciones</Badge>
+            </div>
+            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-400 transition-all duration-1000"
+                style={{ width: `${pilot.tasa_exito_ocr}%` }} />
+            </div>
+            <p className="text-right text-sm font-bold mt-1 text-sky-500">
+              {loading ? "—" : `${pilot.tasa_exito_ocr}%`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/5 animate-slide-up delay-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Alineación MEN</span>
               <Badge variant="secondary" className="text-emerald-500 bg-emerald-500/10 text-xs">Meta: ≥80%</Badge>
             </div>
-            <div className="w-full bg-white/5 rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
               <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-1000"
-                style={{ width: `${metricas.tasa_alineacion_men}%` }} />
+                style={{ width: `${pilot.tasa_alineacion_men}%` }} />
             </div>
             <p className="text-right text-sm font-bold mt-1 text-emerald-500">
-              {loading ? "—" : `${metricas.tasa_alineacion_men}%`}
+              {loading ? "—" : `${pilot.tasa_alineacion_men}%`}
             </p>
           </CardContent>
         </Card>

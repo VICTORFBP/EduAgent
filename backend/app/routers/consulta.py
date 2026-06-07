@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from app.middleware.auth_middleware import get_current_user
 from app.services.n8n_service import n8n_service
+from app.services.supabase_service import supabase_service
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -62,6 +64,8 @@ async def consulta_rag(
     current_user: dict = Depends(get_current_user),
 ):
     """Send a question to the RAG chat agent via n8n and return a structured response."""
+    t_start = time.time()
+    exitoso = False
     try:
         raw = await n8n_service.trigger_consulta(
             pregunta=request.pregunta,
@@ -82,6 +86,7 @@ async def consulta_rag(
                 "Por favor intenta de nuevo en unos momentos."
             )
 
+        exitoso = True
         return {
             "id": str(uuid.uuid4()),
             "role": "assistant",
@@ -93,3 +98,21 @@ async def consulta_rag(
     except Exception as e:
         logger.error(f"Error in RAG consultation: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"Error en consulta RAG: {str(e)}")
+    finally:
+        duracion_ms = int((time.time() - t_start) * 1000)
+        try:
+            await supabase_service.log_interaction({
+                "docente_id": current_user["id"],
+                "modulo": "consulta_rag",
+                "accion": "consulta",
+                "duracion_ms": duracion_ms,
+                "tokens_usados": 0,
+                "exitoso": exitoso,
+                "metadata": {
+                    "area": request.area,
+                    "grado": request.grado,
+                    "tiene_session": request.session_id is not None,
+                },
+            })
+        except Exception as log_err:
+            logger.warning(f"log_interaction failed (non-critical): {log_err}")

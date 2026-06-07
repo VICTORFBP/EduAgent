@@ -234,3 +234,13 @@ async def delete_estudiante(
     """Delete an estudiante."""
     await supabase_service.delete_estudiante(estudiante_id)
     return {"message": "Estudiante eliminado correctamente."}
+
+
+# ──────────────────────────────────────────────
+# Métricas del Piloto (admin only)
+# ──────────────────────────────────────────────
+
+@router.get("/metricas-piloto")
+async def get_metricas_piloto_global(admin_user: dict = Depends(require_admin)):
+    """Return aggregated pilot metrics across all docentes."""
+    return await supabase_service.get_global_pilot_metrics()

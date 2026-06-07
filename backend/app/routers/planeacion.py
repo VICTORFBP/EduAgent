@@ -1,4 +1,8 @@
-"""EduAgent ? Planeacion Router."""
+"""EduAgent — Planeacion Router."""
+
+import logging
+import os
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.middleware.auth_middleware import get_current_user
@@ -10,8 +14,6 @@ from app.models.planeacion import (
 )
 from app.services.supabase_service import supabase_service
 from app.services.n8n_service import n8n_service
-import logging
-import os
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -85,13 +87,15 @@ async def create_planeacion(
     current_user: dict = Depends(get_current_user),
 ):
     """Generate a new planeacion using the RAG agent via n8n."""
+    t_start = time.time()
+    exitoso = False
     try:
         contenido_anterior = None
         feedback = None
         if request.parent_plan_id:
             parent_plan = await supabase_service.get_planeacion(request.parent_plan_id)
             if not parent_plan:
-                raise HTTPException(status_code=404, detail="Planeaci?n padre no encontrada")
+                raise HTTPException(status_code=404, detail="Planeación padre no encontrada")
             contenido_anterior = parent_plan.get("contenido_generado")
             feedback = request.feedback
 
@@ -109,12 +113,33 @@ async def create_planeacion(
             tipo_actividad=request.tipo_actividad,
             skill_context=skill_context,
         )
+        exitoso = True
         return _extract_data(raw)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error generating planeacion: {e}")
-        raise HTTPException(status_code=502, detail=f"Error al generar planeaci?n: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Error al generar planeación: {str(e)}")
+    finally:
+        duracion_ms = int((time.time() - t_start) * 1000)
+        tokens = 0
+        try:
+            await supabase_service.log_interaction({
+                "docente_id": current_user["id"],
+                "modulo": "planeacion",
+                "accion": "generar",
+                "duracion_ms": duracion_ms,
+                "tokens_usados": tokens,
+                "exitoso": exitoso,
+                "metadata": {
+                    "area": request.area,
+                    "tema": request.tema,
+                    "grados": request.grados,
+                    "es_refinamiento": request.parent_plan_id is not None,
+                },
+            })
+        except Exception as log_err:
+            logger.warning(f"log_interaction failed (non-critical): {log_err}")
 
 
 @router.get("/", response_model=list[PlaneacionListResponse])

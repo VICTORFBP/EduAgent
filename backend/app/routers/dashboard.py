@@ -11,10 +11,11 @@ router = APIRouter()
 async def get_metricas(current_user: dict = Depends(get_current_user)):
     """Get aggregated dashboard metrics for the current docente."""
     stats = await supabase_service.get_dashboard_stats(current_user["id"])
+    pilot = await supabase_service.get_pilot_metrics(current_user["id"])
     return {
         **stats,
-        "tiempo_ahorrado_horas": round(stats.get("planeaciones_mes", 0) * 0.75, 1),
-        "tasa_alineacion_men": 85 if stats.get("planeaciones_mes", 0) > 0 else 0,
+        "tiempo_ahorrado_horas": pilot["tiempo_ahorrado_horas"],
+        "tasa_alineacion_men": pilot["tasa_alineacion_men"],
     }
 
 
@@ -28,3 +29,9 @@ async def get_actividad(current_user: dict = Depends(get_current_user)):
 async def get_estudiantes(current_user: dict = Depends(get_current_user)):
     """Get students assigned to the current docente."""
     return await supabase_service.get_estudiantes(current_user["id"])
+
+
+@router.get("/metricas-piloto")
+async def get_metricas_piloto(current_user: dict = Depends(get_current_user)):
+    """Get detailed pilot metrics for the current docente."""
+    return await supabase_service.get_pilot_metrics(current_user["id"])

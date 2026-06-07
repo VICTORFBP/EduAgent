@@ -495,6 +495,191 @@ class SupabaseService:
             "estudiantes_total": estudiantes.count or 0,
         }
 
+    async def get_pilot_metrics(self, docente_id: str) -> dict:
+        """Calculate real pilot metrics for a specific docente."""
+        if not self.client:
+            return _empty_pilot_metrics()
+        try:
+            # --- Planeaciones ---
+            planes = (
+                self.client.table("planeaciones")
+                .select("id, validada_docente, correcciones")
+                .eq("docente_id", docente_id)
+                .execute()
+            )
+            total_planes = len(planes.data) if planes.data else 0
+            validadas = sum(1 for p in (planes.data or []) if p.get("validada_docente"))
+            corregidas = sum(1 for p in (planes.data or []) if p.get("correcciones"))
+
+            # --- Evaluaciones ---
+            evals = (
+                self.client.table("evaluaciones")
+                .select("id, procesado_correctamente")
+                .eq("docente_id", docente_id)
+                .execute()
+            )
+            total_evals = len(evals.data) if evals.data else 0
+            evals_ok = sum(1 for e in (evals.data or []) if e.get("procesado_correctamente"))
+
+            # --- Tiempo promedio de planeación (desde interaction_logs) ---
+            logs = (
+                self.client.table("interaction_logs")
+                .select("duracion_ms")
+                .eq("docente_id", docente_id)
+                .eq("modulo", "planeacion")
+                .eq("exitoso", True)
+                .execute()
+            )
+            tiempos = [r["duracion_ms"] for r in (logs.data or []) if r.get("duracion_ms")]
+            tiempo_promedio_ms = int(sum(tiempos) / len(tiempos)) if tiempos else 0
+
+            # Baseline: 2.5h (150 min = 9,000,000 ms) según el docente
+            BASELINE_MS = 9_000_000
+            tiempo_ahorrado_ms = max(0, BASELINE_MS - tiempo_promedio_ms) * total_planes
+            tiempo_ahorrado_horas = round(tiempo_ahorrado_ms / 3_600_000, 1)
+
+            # Tasa de alineación MEN: planeaciones validadas sin correcciones / total
+            tasa_alineacion = round((validadas - corregidas) / total_planes * 100) if total_planes > 0 else 0
+            tasa_correccion = round(corregidas / total_planes * 100) if total_planes > 0 else 0
+            tasa_ocr = round(evals_ok / total_evals * 100) if total_evals > 0 else 0
+
+            return {
+                "tiempo_promedio_planeacion_ms": tiempo_promedio_ms,
+                "tiempo_ahorrado_horas": tiempo_ahorrado_horas,
+                "tasa_alineacion_men": max(0, min(100, tasa_alineacion)),
+                "tasa_correccion_rag": max(0, min(100, tasa_correccion)),
+                "tasa_exito_ocr": max(0, min(100, tasa_ocr)),
+                "total_planeaciones": total_planes,
+                "total_evaluaciones": total_evals,
+                "total_evaluaciones_ok": evals_ok,
+                "total_planeaciones_validadas": validadas,
+                "total_planeaciones_corregidas": corregidas,
+            }
+        except Exception as e:
+            logger.error(f"Error calculating pilot metrics for {docente_id}: {e}")
+            return _empty_pilot_metrics()
+
+    async def get_global_pilot_metrics(self) -> dict:
+        """Aggregate pilot metrics across ALL docentes (admin only)."""
+        if not self.client:
+            return {"docentes": [], "global": _empty_pilot_metrics()}
+        try:
+            # All planeaciones
+            all_planes = (
+                self.client.table("planeaciones")
+                .select("id, docente_id, validada_docente, correcciones, created_at")
+                .order("created_at", desc=True)
+                .execute()
+            )
+            # All evaluaciones
+            all_evals = (
+                self.client.table("evaluaciones")
+                .select("id, docente_id, procesado_correctamente")
+                .execute()
+            )
+            # Interaction logs for timing
+            all_logs = (
+                self.client.table("interaction_logs")
+                .select("docente_id, modulo, duracion_ms, accion, exitoso, created_at")
+                .eq("exitoso", True)
+                .execute()
+            )
+            # Docentes list
+            docentes_list = (
+                self.client.table("docentes")
+                .select("id, nombre")
+                .execute()
+            )
+
+            docente_map = {d["id"]: d["nombre"] for d in (docentes_list.data or [])}
+
+            # Group by docente
+            from collections import defaultdict
+            planes_by_doc = defaultdict(list)
+            for p in (all_planes.data or []):
+                planes_by_doc[p["docente_id"]].append(p)
+
+            evals_by_doc = defaultdict(list)
+            for e in (all_evals.data or []):
+                evals_by_doc[e["docente_id"]].append(e)
+
+            logs_by_doc = defaultdict(list)
+            for l in (all_logs.data or []):
+                if l["modulo"] == "planeacion":
+                    logs_by_doc[l["docente_id"]].append(l)
+
+            BASELINE_MS = 9_000_000
+            docentes_metrics = []
+            for doc_id, nombre in docente_map.items():
+                planes = planes_by_doc[doc_id]
+                evals = evals_by_doc[doc_id]
+                logs = logs_by_doc[doc_id]
+
+                total_p = len(planes)
+                validadas = sum(1 for p in planes if p.get("validada_docente"))
+                corregidas = sum(1 for p in planes if p.get("correcciones"))
+                total_e = len(evals)
+                evals_ok = sum(1 for e in evals if e.get("procesado_correctamente"))
+                tiempos = [l["duracion_ms"] for l in logs if l.get("duracion_ms")]
+                t_promedio = int(sum(tiempos) / len(tiempos)) if tiempos else 0
+                t_ahorrado = round(max(0, BASELINE_MS - t_promedio) * total_p / 3_600_000, 1)
+
+                docentes_metrics.append({
+                    "docente_id": doc_id,
+                    "nombre": nombre,
+                    "total_planeaciones": total_p,
+                    "planeaciones_validadas": validadas,
+                    "planeaciones_corregidas": corregidas,
+                    "tiempo_promedio_planeacion_ms": t_promedio,
+                    "tiempo_ahorrado_horas": t_ahorrado,
+                    "total_evaluaciones": total_e,
+                    "evaluaciones_ok": evals_ok,
+                    "tasa_ocr": round(evals_ok / total_e * 100) if total_e > 0 else 0,
+                })
+
+            # Global aggregates
+            total_planes_g = len(all_planes.data or [])
+            total_evals_g = len(all_evals.data or [])
+            evals_ok_g = sum(1 for e in (all_evals.data or []) if e.get("procesado_correctamente"))
+            validadas_g = sum(1 for p in (all_planes.data or []) if p.get("validada_docente"))
+            corregidas_g = sum(1 for p in (all_planes.data or []) if p.get("correcciones"))
+            all_tiempos = [l["duracion_ms"] for l in (all_logs.data or []) if l.get("modulo") == "planeacion" and l.get("duracion_ms")]
+            t_prom_g = int(sum(all_tiempos) / len(all_tiempos)) if all_tiempos else 0
+
+            return {
+                "docentes": docentes_metrics,
+                "global": {
+                    "total_planeaciones": total_planes_g,
+                    "total_evaluaciones": total_evals_g,
+                    "total_evaluaciones_ok": evals_ok_g,
+                    "total_planeaciones_validadas": validadas_g,
+                    "total_planeaciones_corregidas": corregidas_g,
+                    "tiempo_promedio_planeacion_ms": t_prom_g,
+                    "tasa_alineacion_men": round((validadas_g - corregidas_g) / total_planes_g * 100) if total_planes_g > 0 else 0,
+                    "tasa_correccion_rag": round(corregidas_g / total_planes_g * 100) if total_planes_g > 0 else 0,
+                    "tasa_exito_ocr": round(evals_ok_g / total_evals_g * 100) if total_evals_g > 0 else 0,
+                },
+            }
+        except Exception as e:
+            logger.error(f"Error calculating global pilot metrics: {e}")
+            return {"docentes": [], "global": _empty_pilot_metrics()}
+
+
+def _empty_pilot_metrics() -> dict:
+    """Return empty pilot metrics structure."""
+    return {
+        "tiempo_promedio_planeacion_ms": 0,
+        "tiempo_ahorrado_horas": 0,
+        "tasa_alineacion_men": 0,
+        "tasa_correccion_rag": 0,
+        "tasa_exito_ocr": 0,
+        "total_planeaciones": 0,
+        "total_evaluaciones": 0,
+        "total_evaluaciones_ok": 0,
+        "total_planeaciones_validadas": 0,
+        "total_planeaciones_corregidas": 0,
+    }
+
 
 # Singleton instance
 supabase_service = SupabaseService()

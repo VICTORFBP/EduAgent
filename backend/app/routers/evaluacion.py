@@ -1,6 +1,7 @@
 """EduAgent — Evaluación Router."""
 
 import logging
+import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
@@ -76,6 +77,8 @@ async def create_evaluacion(
                 detail="Este estudiante ya tiene una evaluación enviada para esta planeación. Elimínala primero si deseas volver a evaluar.",
             )
 
+    t_start = time.time()
+    exitoso = False
     try:
         file_bytes = await archivo.read()
         
@@ -148,6 +151,7 @@ async def create_evaluacion(
             contexto_evaluacion,
         )
 
+        exitoso = True
         return {
             "id": db_record["id"],
             "status": "processing",
@@ -161,6 +165,25 @@ async def create_evaluacion(
         raise HTTPException(
             status_code=500, detail=f"Error al procesar evaluación: {str(e)}"
         )
+    finally:
+        duracion_ms = int((time.time() - t_start) * 1000)
+        try:
+            await supabase_service.log_interaction({
+                "docente_id": current_user["id"],
+                "modulo": "evaluacion",
+                "accion": "subir",
+                "duracion_ms": duracion_ms,
+                "tokens_usados": 0,
+                "exitoso": exitoso,
+                "metadata": {
+                    "area": area,
+                    "tipo": tipo,
+                    "estudiante_id": estudiante_id,
+                    "tiene_planeacion": planeacion_id is not None,
+                },
+            })
+        except Exception as log_err:
+            logger.warning(f"log_interaction failed (non-critical): {log_err}")
 
 
 @router.get("/")
