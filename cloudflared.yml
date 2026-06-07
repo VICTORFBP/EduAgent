@@ -1,0 +1,9 @@
+tunnel: 516535d2-b6b6-4b6a-9581-739979dd2056
+credentials-file: C:\Users\admin\.cloudflared\516535d2-b6b6-4b6a-9581-739979dd2056.json
+
+ingress:
+  - hostname: vicdev.org
+    service: http://localhost:3000
+  - hostname: api.vicdev.org
+    service: http://localhost:8000
+  - service: http_status:404

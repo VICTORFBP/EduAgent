@@ -35,6 +35,14 @@ _AREA_KEY_MAP = {
     "\u00e9tica":         "Etica",
     "artistica":         "Artistica",
     "art\u00edstica":     "Artistica",
+    "ingles":            "Ingles",
+    "ingl\u00e9s":        "Ingles",
+    "tecnologia":        "Tecnologia",
+    "tecnolog\u00eda":    "Tecnologia",
+    "tecnologia e informatica": "Tecnologia",
+    "tecnolog\u00eda e inform\u00e1tica": "Tecnologia",
+    "educacion fisica":  "Educacion Fisica",
+    "educaci\u00f3n f\u00edsica": "Educacion Fisica",
 }
 
 
@@ -664,7 +672,7 @@ class PdfGeneratorService:
     _TEMPLATE_IMPORT        = "/services/typst_templates/actividad.typ"
     _PRUEBA_TEMPLATE_IMPORT = "/services/typst_templates/prueba_estandarizada.typ"
 
-    def _build_doc(self, actividad: dict, plan: dict, grado: int) -> str:
+    def _build_doc(self, actividad: dict, plan: dict, grado: int, docente: bool = False) -> str:
         titulo_raw        = _coerce_str(actividad.get("titulo", "Actividad Evaluativa"))
         instrucciones_raw = _coerce_str(actividad.get("instrucciones", ""))
 
@@ -682,7 +690,7 @@ class PdfGeneratorService:
         instrucciones_typst  = _markdown_to_typst(instrucciones_raw)
 
         clave_typst = ""
-        if clave_raw.strip():
+        if docente and clave_raw.strip():
             clave_typst = f"#seccion-clave[\n{_markdown_to_typst(clave_raw)}\n]"
 
         instr_arg = "none"
@@ -781,16 +789,34 @@ class PdfGeneratorService:
         if instrucciones_typst.strip():
             instr_arg = f"[{instrucciones_typst}]"
 
-        # Docente copy: pass clave to conf-prueba so it can render the marked sheet
-        clave_arg = "none"
-        if docente and isinstance(clave_raw, dict) and clave_raw:
-            clave_arg = self._clave_to_typst(clave_raw)
+        # If docente=True, generate ONLY the answer key
+        if docente:
+            clave_arg = "none"
+            if isinstance(clave_raw, dict) and clave_raw:
+                clave_arg = self._clave_to_typst(clave_raw)
+                
+            return (
+                f'#import "@preview/mitex:0.2.4": *\n'
+                f'#import "{self._PRUEBA_TEMPLATE_IMPORT}": conf-clave-docente\n\n'
+                f'#show: doc => conf-clave-docente(\n'
+                f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
+                f'  area: "{_escape_str_arg(area_key)}",\n'
+                f'  grado: "{_escape_str_arg(str(grado))}",\n'
+                f'  n_preguntas: {n_preguntas},\n'
+                f'  clave: {clave_arg},\n'
+                f'  doc,\n'
+                f')\n\n'
+                f'[]\n'
+            )
 
+        # Standard student copy
         doc = (
             f'#import "@preview/mitex:0.2.4": *\n'
             f'#import "{self._PRUEBA_TEMPLATE_IMPORT}": '
             f'conf-prueba, hoja-respuestas, recuadro, fragmento-lectura, '
-            f'opcion, tabla-formato, bloque-instrucciones\n\n'
+            f'opcion, tabla-formato, bloque-instrucciones\n'
+            f'#import "{self._TEMPLATE_IMPORT}": lineas-respuesta, caja-respuesta, '
+            f'verdadero-falso, dibujo, grilla, seccion-clave\n\n'
             f'#show: doc => conf-prueba(\n'
             f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
             f'  area: "{_escape_str_arg(area_key)}",\n'
@@ -798,24 +824,11 @@ class PdfGeneratorService:
             f'  tema: "{_escape_str_arg(tema_raw)}",\n'
             f'  instrucciones: {instr_arg},\n'
             f'  n_preguntas: {n_preguntas},\n'
-            f'  clave: {clave_arg},\n'
+            f'  clave: none,\n'
             f'  doc,\n'
             f')\n\n'
             f'{contenido_typst}\n'
         )
-
-        # For the docente copy, append a second marked answer-sheet page
-        if docente and isinstance(clave_raw, dict) and clave_raw:
-            clave_typst = self._clave_to_typst(clave_raw)
-            doc += (
-                f'\n#hoja-respuestas(\n'
-                f'  n_preguntas: {n_preguntas},\n'
-                f'  clave: {clave_typst},\n'
-                f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
-                f'  area: "{_escape_str_arg(area_key)}",\n'
-                f'  grado: "{_escape_str_arg(str(grado))}",\n'
-                f')\n'
-            )
 
         return doc
 
@@ -844,8 +857,8 @@ class PdfGeneratorService:
             if os.path.exists(main_file):
                 os.remove(main_file)
 
-    async def generate_pdf(self, actividad: dict, plan: dict, grado: int) -> bytes:
-        doc_src = self._build_doc(actividad, plan, grado)
+    async def generate_pdf(self, actividad: dict, plan: dict, grado: int, docente: bool = False) -> bytes:
+        doc_src = self._build_doc(actividad, plan, grado, docente=docente)
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self._compile_typst, doc_src)
 

@@ -76,7 +76,8 @@ export function useEvaluaciones() {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errData.detail || "Error al procesar la evaluación");
+      const detailMsg = typeof errData.detail === "object" ? JSON.stringify(errData.detail) : errData.detail;
+      throw new Error(detailMsg || "Error al procesar la evaluación");
     }
 
     const result = await response.json();
@@ -88,11 +89,52 @@ export function useEvaluaciones() {
     return result;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const deleteEvaluacion = useCallback(async (evaluacionId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("No hay sesión activa");
+
+    const response = await fetch(`${API}/evaluacion/${evaluacionId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errData.detail || "Error al eliminar la evaluación");
+    }
+
+    setEvaluaciones((prev) => prev.filter((e) => e.id !== evaluacionId));
+  }, []);
+
+  const retryEvaluacion = useCallback(async (evaluacionId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("No hay sesión activa");
+
+    const response = await fetch(`${API}/evaluacion/${evaluacionId}/retry`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errData.detail || "Error al reintentar la evaluación");
+    }
+
+    setEvaluaciones((prev) =>
+      prev.map((e) =>
+        e.id === evaluacionId ? { ...e, procesado_correctamente: false, error_ocr: null } : e
+      )
+    );
+    scheduleNextPoll();
+  }, []);
+
   return {
     evaluaciones,
     isLoading,
     error,
     processEvaluacion,
+    deleteEvaluacion,
+    retryEvaluacion,
     refresh: () => fetchEvaluaciones(),
   };
 }

@@ -78,6 +78,7 @@ class N8nService:
         area: str,
         tipo: str,
         archivo_url: str,
+        contexto_evaluacion: dict | None = None,
     ) -> dict:
         """Trigger the evaluación processing workflow in n8n."""
         payload = {
@@ -87,6 +88,7 @@ class N8nService:
             "area": area,
             "tipo": tipo,
             "archivo_url": archivo_url,
+            "contexto_evaluacion": contexto_evaluacion,
         }
         return await self._call_webhook(settings.n8n_webhook_evaluacion, payload)
 

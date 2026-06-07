@@ -7,7 +7,7 @@
 //   conf, recuadro, fragmento-lectura, opcion, tabla-formato
 //
 // Exporta adicionalmente:
-//   conf-prueba, hoja-respuestas
+//   conf-prueba, hoja-respuestas, conf-clave-docente
 //
 #import "@preview/mitex:0.2.4": *
 
@@ -24,6 +24,9 @@
   "Ciencias Sociales": (pri: rgb("#1e3a5f"), light: rgb("#e0eaf5"), acc: rgb("#2563eb")),
   "Etica":             (pri: rgb("#4a1d96"), light: rgb("#ede9fe"), acc: rgb("#7c3aed")),
   "Artistica":         (pri: rgb("#831843"), light: rgb("#fce7f3"), acc: rgb("#db2777")),
+  "Ingles":            (pri: rgb("#0f766e"), light: rgb("#ccfbf1"), acc: rgb("#14b8a6")),
+  "Tecnologia":        (pri: rgb("#0891b2"), light: rgb("#ecfeff"), acc: rgb("#06b6d4")),
+  "Educacion Fisica":  (pri: rgb("#c2410c"), light: rgb("#ffedd5"), acc: rgb("#f97316")),
 )
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -180,13 +183,14 @@
   titulo: "",
   area: "",
   grado: "",
-  institucion: "EduAgent",
+  institucion: "",
+  saltar-pagina: true,
 ) = {
   context {
     let cp = color-principal.get()
     let cl = color-claro.get()
 
-    pagebreak()
+    if saltar-pagina { pagebreak() }
 
     // ── Encabezado de la hoja ─────────────────────────────────────────────────
     block(below: 0.8em, width: 100%)[
@@ -470,5 +474,48 @@
     area: area,
     grado: grado,
     institucion: institucion,
+    saltar-pagina: true,
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FUNCIÓN PRINCIPAL: conf-clave-docente (Solo genera la hoja de respuestas)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#let conf-clave-docente(
+  titulo: "",
+  area: "General",
+  grado: "",
+  n_preguntas: 20,
+  clave: none,
+  institucion: "EduAgent",
+  doc,
+) = {
+  // 1. Resolver paleta de colores
+  let _colores = _paleta.at(area, default: (
+    pri: rgb("#1e3a5f"), light: rgb("#e0eaf5"), acc: rgb("#2563eb")
+  ))
+  let cp = _colores.pri
+  let cl = _colores.light
+  let ca = _colores.acc
+
+  // 2. Inyectar estado global de colores
+  color-principal.update(cp)
+  color-claro.update(cl)
+  color-acento.update(ca)
+
+  // 3. Configuración básica de página
+  set page(paper: "us-letter", margin: (top: 2cm, bottom: 2cm, left: 2.5cm, right: 2.5cm))
+  set text(font: ("Arial", "Liberation Sans", "Helvetica"), size: 10.5pt, lang: "es")
+
+  // 4. Renderizar solo la hoja de respuestas
+  hoja-respuestas(
+    n_preguntas: n_preguntas,
+    clave: clave,
+    titulo: titulo,
+    area: area,
+    grado: grado,
+    institucion: institucion,
+    saltar-pagina: false
   )
 }

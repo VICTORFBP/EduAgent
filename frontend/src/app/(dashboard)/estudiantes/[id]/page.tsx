@@ -16,8 +16,8 @@ import { AREA_COLORS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 
 function getNotaColor(nota: number): string {
-  if (nota >= 4.0) return "text-emerald-500";
-  if (nota >= 3.0) return "text-amber-500";
+  if (nota >= 8.0) return "text-emerald-500";
+  if (nota >= 6.0) return "text-amber-500";
   return "text-red-500";
 }
 

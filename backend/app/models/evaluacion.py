@@ -22,4 +22,6 @@ class EvaluacionResponse(BaseModel):
     retroalimentacion: Optional[str] = None
     procesado_correctamente: bool
     error_ocr: Optional[str] = None
+    planeacion_id: Optional[str] = None
+    grado: Optional[int] = None
     created_at: str

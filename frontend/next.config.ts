@@ -8,7 +8,7 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["overview-headset-pouch.ngrok-free.dev"],
+  allowedDevOrigins: ["overview-headset-pouch.ngrok-free.dev", "vicdev.org"],
   async rewrites() {
     return [
       {

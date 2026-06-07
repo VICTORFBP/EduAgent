@@ -242,6 +242,7 @@ async def generate_actividad(
 async def get_actividad_pdf(
     planeacion_id: str,
     grado: int,
+    docente: bool = False,
 ):
     """Genera y devuelve el PDF de la actividad para un grado específico (usando Typst)."""
     from fastapi.responses import Response
@@ -256,11 +257,12 @@ async def get_actividad_pdf(
         raise HTTPException(status_code=404, detail="La planeación no tiene actividad generada")
         
     try:
-        pdf_bytes = await pdf_generator_service.generate_pdf(actividad, plan, grado)
+        pdf_bytes = await pdf_generator_service.generate_pdf(actividad, plan, grado, docente=docente)
+        suffix = "docente" if docente else "estudiante"
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"inline; filename=actividad_grado_{grado}.pdf"}
+            headers={"Content-Disposition": f"inline; filename=actividad_grado_{grado}_{suffix}.pdf"}
         )
     except Exception as e:
         import traceback

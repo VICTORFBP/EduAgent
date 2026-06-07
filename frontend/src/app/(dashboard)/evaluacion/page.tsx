@@ -12,11 +12,21 @@ import {
   AlertCircle,
   Filter,
   Loader2,
+  Trash2,
+  RefreshCcw,
 } from "lucide-react";
 import { useEvaluaciones } from "@/hooks/useEvaluaciones";
 import { AREA_COLORS } from "@/lib/types";
 import Link from "next/link";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Evaluacion } from "@/lib/types";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-CO", {
@@ -27,14 +37,39 @@ function formatDate(iso: string): string {
 
 function getNotaColor(nota: number | null): string {
   if (nota === null) return "text-muted-foreground";
-  if (nota >= 4.0) return "text-emerald-500";
-  if (nota >= 3.0) return "text-amber-500";
+  if (nota >= 8.0) return "text-emerald-500";
+  if (nota >= 6.0) return "text-amber-500";
   return "text-red-500";
 }
 
 export default function EvaluacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { evaluaciones, isLoading } = useEvaluaciones();
+  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion } = useEvaluaciones();
+  const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
+  const [selectedEvaluacion, setSelectedEvaluacion] = useState<Evaluacion | null>(null);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Estás seguro de eliminar esta evaluación?")) return;
+    try {
+      setIsActionLoading(id);
+      await deleteEvaluacion(id);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
+
+  const handleRetry = async (id: string) => {
+    try {
+      setIsActionLoading(id);
+      await retryEvaluacion(id);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
 
   const filtered = evaluaciones.filter(
     (e) =>
@@ -85,8 +120,9 @@ export default function EvaluacionPage() {
             {filtered.map((ev, i) => (
               <Card
                 key={ev.id}
-                className="glass-card border-white/5 hover:border-white/10 transition-all animate-slide-up"
+                className="group glass-card border-white/5 hover:border-white/10 transition-all animate-slide-up cursor-pointer"
                 style={{ animationDelay: `${(i + 1) * 80}ms` }}
+                onClick={() => setSelectedEvaluacion(ev as Evaluacion)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -111,7 +147,7 @@ export default function EvaluacionPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
+                    <div className="flex flex-col items-end shrink-0 ml-3 gap-2">
                       {ev.procesado_correctamente && ev.nota !== null && ev.nota !== undefined ? (
                         <p className={`text-2xl font-bold ${getNotaColor(Number(ev.nota))}`}>
                           {Number(ev.nota).toFixed(1)}
@@ -130,6 +166,35 @@ export default function EvaluacionPage() {
                           <p className="text-[10px] text-muted-foreground">Gemini Vision</p>
                         </div>
                       )}
+                      
+                      <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRetry(ev.id);
+                          }}
+                          disabled={isActionLoading === ev.id}
+                          title="Reintentar evaluación"
+                        >
+                          <RefreshCcw className={`w-3.5 h-3.5 ${isActionLoading === ev.id ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(ev.id);
+                          }}
+                          disabled={isActionLoading === ev.id}
+                          title="Eliminar evaluación"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   {ev.retroalimentacion && (
@@ -155,6 +220,88 @@ export default function EvaluacionPage() {
           )}
         </>
       )}
+
+      {/* Modal for details */}
+      <Dialog open={!!selectedEvaluacion} onOpenChange={(open) => !open && setSelectedEvaluacion(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto glass-card border-white/10">
+          {selectedEvaluacion && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${selectedEvaluacion.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                    {selectedEvaluacion.procesado_correctamente ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                    )}
+                  </div>
+                  Evaluación de {selectedEvaluacion.estudiante_nombre || "Estudiante"}
+                </DialogTitle>
+                <DialogDescription>
+                  Revisión detallada procesada por IA.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center">
+                    <span className="text-sm text-muted-foreground mb-1">Nota Asignada</span>
+                    {selectedEvaluacion.procesado_correctamente && selectedEvaluacion.nota !== null ? (
+                      <span className={`text-4xl font-bold ${getNotaColor(Number(selectedEvaluacion.nota))}`}>
+                        {Number(selectedEvaluacion.nota).toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-xl font-semibold text-muted-foreground">N/A</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Área</span>
+                      <Badge className={`${AREA_COLORS[selectedEvaluacion.area] || "bg-muted"} border-0`}>
+                        {selectedEvaluacion.area}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Tipo</span>
+                      <Badge variant="outline" className="border-white/10">
+                        {selectedEvaluacion.tipo}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Fecha</span>
+                      <span className="font-medium">{formatDate(selectedEvaluacion.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedEvaluacion.retroalimentacion && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-primary" />
+                      Retroalimentación
+                    </h4>
+                    <div className="bg-black/20 p-4 rounded-xl border border-white/5 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                      {selectedEvaluacion.retroalimentacion}
+                    </div>
+                  </div>
+                )}
+
+                {selectedEvaluacion.error_ocr && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Error en Procesamiento
+                    </h4>
+                    <div className="bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-sm text-red-200 whitespace-pre-wrap">
+                      {selectedEvaluacion.error_ocr}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

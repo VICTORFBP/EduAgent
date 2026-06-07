@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Copy, Printer, ChevronDown, Download, Maximize2, ClipboardList } from "lucide-react";
+import { BookOpen, Copy, Printer, ChevronDown, Download, Maximize2, ClipboardList, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,7 +82,9 @@ export function ActividadDialog({
         docenteMode ? "&docente=true" : ""
       }`;
     }
-    return `${base}/planeacion/${plan.id}/actividad/pdf?grado=${grade}#toolbar=0&navpanes=0`;
+    return `${base}/planeacion/${plan.id}/actividad/pdf?grado=${grade}${
+      docenteMode ? "&docente=true" : ""
+    }#toolbar=0&navpanes=0`;
   };
 
   useEffect(() => {
@@ -244,7 +246,7 @@ export function ActividadDialog({
                   Guía de Respuestas y Criterios de Calificación
                 </h4>
                 <Link
-                  href={`/evaluacion/nueva?area=${encodeURIComponent(plan.area)}&tipo=abierta`}
+                  href={`/evaluacion/nueva?planeacion_id=${plan.id}&grado=${displayGrade || ""}&area=${encodeURIComponent(plan.area)}&tipo=abierta`}
                 >
                   <Button
                     size="sm"
@@ -277,6 +279,17 @@ export function ActividadDialog({
               : "Vista del documento tal como se imprimirá."}
           </span>
           <div className="flex flex-wrap gap-2 justify-end">
+            <Link
+              href={`/evaluacion/nueva?planeacion_id=${plan.id}&grado=${displayGrade || ""}&area=${encodeURIComponent(plan.area)}&tipo=${isPruebaEstandarizada ? "estandarizada" : "abierta"}`}
+            >
+              <Button
+                variant="default"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Evaluar esta actividad
+              </Button>
+            </Link>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

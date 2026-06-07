@@ -86,6 +86,8 @@ class SupabaseService:
         """Delete a planeación by ID."""
         if not self.client:
             return True
+        # Delete related evaluaciones first to avoid foreign key constraint error
+        self.client.table("evaluaciones").delete().eq("planeacion_id", planeacion_id).execute()
         self.client.table("planeaciones").delete().eq("id", planeacion_id).execute()
         return True
 
@@ -108,6 +110,24 @@ class SupabaseService:
             return data
         response = self.client.table("evaluaciones").insert(data).execute()
         return response.data[0]
+
+    async def delete_evaluacion(self, evaluacion_id: str) -> bool:
+        if not self.client:
+            return True
+        self.client.table("evaluaciones").delete().eq("id", evaluacion_id).execute()
+        return True
+
+    async def get_evaluacion_by_student_plan(self, estudiante_id: str, planeacion_id: str) -> dict | None:
+        if not self.client:
+            return None
+        response = (
+            self.client.table("evaluaciones")
+            .select("*")
+            .eq("estudiante_id", estudiante_id)
+            .eq("planeacion_id", planeacion_id)
+            .execute()
+        )
+        return response.data[0] if response.data else None
 
     async def get_evaluacion(self, evaluacion_id: str) -> dict | None:
         """Get a single evaluación by ID."""

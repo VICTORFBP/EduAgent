@@ -20,6 +20,9 @@
   "Ciencias Sociales": (pri: rgb("#1e3a5f"), light: rgb("#e0eaf5"), acc: rgb("#2563eb")),
   "Etica":             (pri: rgb("#4a1d96"), light: rgb("#ede9fe"), acc: rgb("#7c3aed")),
   "Artistica":         (pri: rgb("#831843"), light: rgb("#fce7f3"), acc: rgb("#db2777")),
+  "Ingles":            (pri: rgb("#0f766e"), light: rgb("#ccfbf1"), acc: rgb("#14b8a6")),
+  "Tecnologia":        (pri: rgb("#0891b2"), light: rgb("#ecfeff"), acc: rgb("#06b6d4")),
+  "Educacion Fisica":  (pri: rgb("#c2410c"), light: rgb("#ffedd5"), acc: rgb("#f97316")),
 )
 
 
