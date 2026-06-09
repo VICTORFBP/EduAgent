@@ -78,6 +78,46 @@
 
 ---
 
+## Arquitectura Multiagente
+
+### Composición de Agentes
+- [x] El sistema implementa un mínimo de 3 agentes: Matemáticas, Lenguaje y Agente General
+- [x] Cada agente está especializado por área del conocimiento
+- [x] El Agente General cubre áreas complementarias no asignadas a agentes especializados
+- [x] Los agentes operan de forma integrada (colaboración interdependiente)
+
+### Capacidades de Cada Agente
+- [x] Cada agente puede recuperar información curricular oficial (DBA y Estándares MEN) antes de responder
+- [x] Cada agente puede generar planeaciones de clase adaptadas al grado indicado
+- [x] Cada agente justifica sus respuestas citando los estándares MEN aplicables
+- [x] Los agentes soportan segmentación multigrado (adaptan el contenido según el nivel)
+
+### RAG Agéntico
+- [🟡] Los agentes no solo recuperan y responden, sino que seleccionan herramientas de forma proactiva *(Parcial: La orquestación actual es imperativa/predefinida en el backend, no un modelo ReAct puro)*
+- [❌] Los agentes pueden ajustar su estrategia de ejecución según el contexto de la consulta *(El flujo está rígidamente definido en el backend)*
+- [x] Los agentes someten sus resultados a un proceso de crítica interna antes de responder *(Implementado mediante `verification_service`)*
+- [❌] El flujo de recuperación es dinámico (RAG Agéntico), no una secuencia estática *(La secuencia actual de recuperación es estática)*
+
+### Orquestación con n8n
+- [🟡] n8n actúa como orquestador central entre los agentes y el frontend *(Parcial: FastAPI es el orquestador principal; n8n se encarga de la ingesta y flujos específicos)*
+- [🟡] n8n gestiona el routing de consultas hacia el agente especializado correcto *(El routing principal lo realiza FastAPI)*
+- [x] n8n coordina la ingesta de PDFs a la base vectorial
+- [🟡] n8n valida las respuestas de los agentes antes de persistirlas en Supabase *(La validación la hace FastAPI mediante Gemini Vision / OpenRouter)*
+- [x] La latencia de orquestación es aceptable para uso en aula (referencia del documento: < 0.4 s) *(Cumplido, la latencia de red/orquestación es de ~100-200ms excluyendo el LLM)*
+
+### Interacción entre Agentes y RAG
+- [x] Los agentes consultan la base vectorial antes de generar cualquier respuesta
+- [x] La base vectorial contiene indexados los documentos oficiales del MEN (DBA, Estándares)
+- [x] La base vectorial se actualiza cuando el docente carga nuevos documentos PDF
+- [x] Los agentes pueden distinguir entre fuentes oficiales MEN y material cargado por el docente *(A través de los metadatos de Pinecone)*
+
+### Trazabilidad de Agentes
+- [x] Cada interacción con un agente queda registrada en Supabase (logs)
+- [x] El sistema identifica qué agente atendió cada consulta
+- [x] El sistema registra si el docente corrigió o rechazó la respuesta generada por un agente
+
+---
+
 ## Requisitos No Funcionales / Limitaciones a Gestionar
 
 - [🟡] El sistema debe operar con conectividad rural limitada o inestable *(Es web, requiere conexión pero usa SVG ligeros)*

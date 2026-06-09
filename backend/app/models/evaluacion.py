@@ -13,7 +13,7 @@ class EvaluacionCreateRequest(BaseModel):
 
 class EvaluacionResponse(BaseModel):
     id: str
-    estudiante_id: str
+    estudiante_id: Optional[str] = None
     docente_id: str
     area: str
     tipo: str

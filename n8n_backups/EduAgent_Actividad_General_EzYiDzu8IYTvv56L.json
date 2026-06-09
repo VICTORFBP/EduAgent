@@ -1,0 +1,266 @@
+{
+  "updatedAt": "2026-06-06T00:28:41.391Z",
+  "createdAt": "2026-05-20T16:19:41.796Z",
+  "id": "EzYiDzu8IYTvv56L",
+  "name": "EduAgent - Actividad: General (AI)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "sub_g1",
+      "name": "Execute Workflow Trigger",
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Genera una actividad evaluativa (taller) para multigrado colombiano basada en la planeación:\n\nÁrea: {{ $json.body.area }}\nGrados: {{ $json.body.grados.join(', ') }}\nTema: {{ $json.body.tema }}\nPlaneación: {{ JSON.stringify($json.body.contenido_generado) }}\n\n{{ $json.body.tipo_actividad ? 'INSTRUCCIONES DEL DOCENTE:\\n' + $json.body.tipo_actividad + '\\n' : '' }}\n{{ $json.body.skill_context ? 'REFERENCIA DEL ÁREA (normas de formato + guía pedagógica):\\n' + $json.body.skill_context : '' }}\n\nRESPONDE ÚNICAMENTE con el objeto JSON sin ```, con estos campos:\n1. titulo (string)\n2. instrucciones (string Markdown breve)\n3. contenido_grados (objeto grado→string Markdown, SIN respuestas)\n4. clave_respuestas (si es un taller/actividad de desarrollo: un string Markdown con soluciones + rúbrica; si es una prueba estandarizada de opción múltiple: obligatoriamente un objeto JSON en formato {\"1\": \"A\", \"2\": \"B\", ...} con la letra correcta de cada pregunta)\n\nIMPORTANTE: Escapa los caracteres especiales dentro de los strings JSON (ej. saltos de línea como \\\\n)."
+      },
+      "id": "sub_g2",
+      "name": "ActivityAgentGeneral",
+      "position": [
+        208,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "sub_g3",
+      "name": "ChatOpenAI",
+      "position": [
+        112,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $input.first().json.text ?? $input.first().json.output ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: raw }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nreturn [{ json: JSON.parse(raw) }];"
+      },
+      "id": "sub_g4",
+      "name": "ParseJSONGeneral",
+      "position": [
+        528,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "ActivityAgentGeneral": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ParseJSONGeneral",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "ChatOpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "ActivityAgentGeneral",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ActivityAgentGeneral",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "f0e81021-94bb-426b-a2fa-3ff866e6f0f1",
+  "activeVersionId": "f0e81021-94bb-426b-a2fa-3ff866e6f0f1",
+  "versionCounter": 57,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-20T16:19:41.798Z",
+      "createdAt": "2026-05-20T16:19:41.798Z",
+      "role": "workflow:owner",
+      "workflowId": "EzYiDzu8IYTvv56L",
+      "projectId": "erc6WXd7dHHtJI8K",
+      "project": {
+        "updatedAt": "2026-05-12T02:40:24.600Z",
+        "createdAt": "2026-05-12T02:38:19.161Z",
+        "id": "erc6WXd7dHHtJI8K",
+        "name": "Victor Benavidez <victor.fbperez@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-06T00:28:41.392Z",
+    "createdAt": "2026-06-06T00:28:41.392Z",
+    "versionId": "f0e81021-94bb-426b-a2fa-3ff866e6f0f1",
+    "workflowId": "EzYiDzu8IYTvv56L",
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "sub_g1",
+        "name": "Execute Workflow Trigger",
+        "position": [
+          0,
+          0
+        ],
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Genera una actividad evaluativa (taller) para multigrado colombiano basada en la planeación:\n\nÁrea: {{ $json.body.area }}\nGrados: {{ $json.body.grados.join(', ') }}\nTema: {{ $json.body.tema }}\nPlaneación: {{ JSON.stringify($json.body.contenido_generado) }}\n\n{{ $json.body.tipo_actividad ? 'INSTRUCCIONES DEL DOCENTE:\\n' + $json.body.tipo_actividad + '\\n' : '' }}\n{{ $json.body.skill_context ? 'REFERENCIA DEL ÁREA (normas de formato + guía pedagógica):\\n' + $json.body.skill_context : '' }}\n\nRESPONDE ÚNICAMENTE con el objeto JSON sin ```, con estos campos:\n1. titulo (string)\n2. instrucciones (string Markdown breve)\n3. contenido_grados (objeto grado→string Markdown, SIN respuestas)\n4. clave_respuestas (si es un taller/actividad de desarrollo: un string Markdown con soluciones + rúbrica; si es una prueba estandarizada de opción múltiple: obligatoriamente un objeto JSON en formato {\"1\": \"A\", \"2\": \"B\", ...} con la letra correcta de cada pregunta)\n\nIMPORTANTE: Escapa los caracteres especiales dentro de los strings JSON (ej. saltos de línea como \\\\n)."
+        },
+        "id": "sub_g2",
+        "name": "ActivityAgentGeneral",
+        "position": [
+          208,
+          0
+        ],
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4
+      },
+      {
+        "parameters": {
+          "model": "gpt-4o",
+          "options": {
+            "temperature": 0.3
+          }
+        },
+        "id": "sub_g3",
+        "name": "ChatOpenAI",
+        "position": [
+          112,
+          208
+        ],
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.1,
+        "credentials": {
+          "openAiApi": {
+            "id": "Jowod5NKcwNTE2fL",
+            "name": "OpenAI account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "let raw = $input.first().json.text ?? $input.first().json.output ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: raw }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nreturn [{ json: JSON.parse(raw) }];"
+        },
+        "id": "sub_g4",
+        "name": "ParseJSONGeneral",
+        "position": [
+          528,
+          0
+        ],
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2
+      }
+    ],
+    "connections": {
+      "ActivityAgentGeneral": {
+        "main": [
+          [
+            {
+              "index": 0,
+              "node": "ParseJSONGeneral",
+              "type": "main"
+            }
+          ]
+        ]
+      },
+      "ChatOpenAI": {
+        "ai_languageModel": [
+          [
+            {
+              "index": 0,
+              "node": "ActivityAgentGeneral",
+              "type": "ai_languageModel"
+            }
+          ]
+        ]
+      },
+      "Execute Workflow Trigger": {
+        "main": [
+          [
+            {
+              "index": 0,
+              "node": "ActivityAgentGeneral",
+              "type": "main"
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Victor Benavidez",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-06T00:28:41.453Z",
+        "id": 344,
+        "workflowId": "EzYiDzu8IYTvv56L",
+        "versionId": "f0e81021-94bb-426b-a2fa-3ff866e6f0f1",
+        "event": "activated",
+        "userId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      },
+      {
+        "createdAt": "2026-06-06T00:28:41.435Z",
+        "id": 343,
+        "workflowId": "EzYiDzu8IYTvv56L",
+        "versionId": "f0e81021-94bb-426b-a2fa-3ff866e6f0f1",
+        "event": "deactivated",
+        "userId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      }
+    ]
+  }
+}

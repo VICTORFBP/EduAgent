@@ -26,7 +26,7 @@ NUNCA uses: `\( \)`, `\[ \]`, ni texto plano como "2 elevado a 4" o "raíz cuadr
 
 ## Espacios de respuesta (OBLIGATORIO para preguntas abiertas)
 
-Cada pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos:
+Cada pregunta que requiera que el estudiante escriba DEBE ir seguida de un componente de líneas. NUNCA generes guiones bajos (`______`) para simular líneas.
 
 | Necesidad | Marca exacta |
 |-----------|-------------|
@@ -35,11 +35,15 @@ Cada pregunta que requiera respuesta escrita DEBE ir seguida de UNO de estos:
 | Respuesta larga (análisis, ensayo) | `[LINEAS:8]` |
 | Espacio amplio (dibujo, esquema) | `> 🎨 DIBUJO` + instrucción |
 
-Ejemplo correcto:
-```
-1. Explica con tus palabras qué es la fotosíntesis.
-[LINEAS:5]
-```
+**Ejemplos de uso (¡Aprende de esto!):**
+- ❌ INCORRECTO (Usar guiones bajos):
+  `¿Qué es la fotosíntesis?`
+  `______________________`
+  `______________________`
+
+- ✅ CORRECTO (Usar el componente):
+  `¿Qué es la fotosíntesis?`
+  `[LINEAS:4]`
 
 ---
 
@@ -60,29 +64,22 @@ NUNCA uses `a)`, `b)`, `A)` ni ningún formato sin casilla. La casilla `[ ]` es 
 
 ## Verdadero o Falso (OBLIGATORIO como tabla Markdown)
 
-Usa SIEMPRE este formato de tabla con la cabecera exacta `Afirmación | V | F`:
+Usa SIEMPRE este formato de tabla con la cabecera exacta `Afirmación | V | F`. Recuerda usar `<SALTO>` para separar las filas:
 
 ```
-| Afirmación | V | F |
-|:-----------|:-:|:-:|
-| La raíz cuadrada de 25 es 5 | | |
-| $2^4 = 16$ | | |
-| El agua hierve a 100°C | | |
+| Afirmación | V | F |<SALTO>|:-----------|:-:|:-:|<SALTO>| La raíz cuadrada de 25 es 5 | | |<SALTO>| $2^4 = 16$ | | |<SALTO>| El agua hierve a 100°C | | |
 ```
 
-NUNCA escribas "Afirmación V F" como texto plano. SIEMPRE usa la tabla Markdown.
+NUNCA escribas "Afirmación V F" como texto plano. SIEMPRE usa la tabla Markdown con `<SALTO>`.
 
 ---
 
 ## Tablas de completar
 
-Usa tablas Markdown estándar. El sistema las renderiza con cabecera coloreada automáticamente.
+Usa tablas Markdown estándar con la sintaxis `<SALTO>` para separar filas. El sistema las renderiza con cabecera coloreada automáticamente.
 
 ```
-| Número | Potencia | Resultado |
-|--------|----------|-----------|
-| 9      | $3^2$    |           |
-| 16     | $4^2$    |           |
+| Número | Potencia | Resultado |<SALTO>|--------|----------|-----------|<SALTO>| 9      | $3^2$    |           |<SALTO>| 16     | $4^2$    |           |
 ```
 
 ---
@@ -120,14 +117,19 @@ Siempre que sea pedagógicamente útil, incluye un fragmento de lectura contextu
 
 ## Grilla de ejercicios (3 columnas)
 
-Para ejercicios cortos en paralelo (ideal para operaciones matemáticas):
+Para listas de ejercicios cortos en paralelo (ideal para operaciones matemáticas o emparejamiento rápido). NUNCA generes listas largas con guiones bajos (`___`) sueltas; agrupalas en una grilla para ahorrar espacio.
 
-```
-> 📦 GRILLA
-> $3 \times 4 =$ ___
-> $5 \times 6 =$ ___
-> $7 \times 8 =$ ___
-```
+**Ejemplos de uso (¡Aprende de esto!):**
+- ❌ INCORRECTO (Lista suelta):
+  `- $3 \times 4 =$ ___`
+  `- $5 \times 6 =$ ___`
+  `- $7 \times 8 =$ ___`
+
+- ✅ CORRECTO (Usar el componente):
+  `> 📦 GRILLA`
+  `> $3 \times 4 =$ ___`
+  `> $5 \times 6 =$ ___`
+  `> $7 \times 8 =$ ___`
 
 ---
 

@@ -1,0 +1,387 @@
+{
+  "updatedAt": "2026-06-06T00:28:38.582Z",
+  "createdAt": "2026-05-20T16:19:27.887Z",
+  "id": "ubDxiebseBzaDyD6",
+  "name": "EduAgent - Actividad: Lenguaje (AI)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "sub_l1",
+      "name": "Execute Workflow Trigger",
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "=Genera una actividad evaluativa (taller) para multigrado colombiano basada en la planeación:\n\nÁrea: {{ $json.body.area }}\nGrados: {{ $json.body.grados.join(', ') }}\nTema: {{ $json.body.tema }}\nPlaneación: {{ JSON.stringify($json.body.contenido_generado) }}\n\n{{ $json.body.tipo_actividad ? 'INSTRUCCIONES DEL DOCENTE:\\n' + $json.body.tipo_actividad + '\\n' : '' }}\n{{ $json.body.skill_context ? 'REFERENCIA DEL ÁREA (normas de formato + guía pedagógica):\\n' + $json.body.skill_context : '' }}",
+        "options": {
+          "systemMessage": "Eres un asistente pedagógico experto. Utiliza la herramienta 'buscar_documentos' para consultar los estándares y contenido curricular si lo necesitas.\n\nRESPONDE ÚNICAMENTE  con el objeto JSON sin ```, con estos campos:\n1. titulo (string)\n2. instrucciones (string Markdown breve)\n3. contenido_grados (objeto grado→string Markdown, SIN respuestas)\n4. clave_respuestas (si es un taller/actividad de desarrollo: un string Markdown con soluciones + rúbrica; si es una prueba estandarizada de opción múltiple: obligatoriamente un objeto JSON en formato {\"1\": \"A\", \"2\": \"B\", ...} con la letra correcta de cada pregunta)\n\nIMPORTANTE: Escapa los caracteres especiales dentro de los strings JSON (ej. saltos de línea como \\\\n)."
+        }
+      },
+      "id": "sub_l2",
+      "name": "ActivityAgentLanguage",
+      "position": [
+        208,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "sub_l3",
+      "name": "ChatOpenAI",
+      "position": [
+        112,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $input.first().json.text ?? $input.first().json.output ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: raw }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nreturn [{ json: JSON.parse(raw) }];"
+      },
+      "id": "sub_l4",
+      "name": "ParseJSONLanguage",
+      "position": [
+        544,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "name": "buscar_documentos",
+        "description": "Herramienta de búsqueda en documentos curriculares y pedagógicos. Úsala para enriquecer la actividad."
+      },
+      "id": "tool_rag",
+      "name": "VectorStoreTool",
+      "position": [
+        400,
+        192
+      ],
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "tableName": "document_chunks",
+        "options": {}
+      },
+      "id": "supa_vec",
+      "name": "SupabaseVector",
+      "position": [
+        208,
+        336
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "credentials": {
+        "supabaseApi": {
+          "id": "hdMca8ziAD6HN8DO",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "embed_openai",
+      "name": "Embeddings",
+      "position": [
+        16,
+        464
+      ],
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "chat_tool",
+      "name": "ChatOpenAITool",
+      "position": [
+        592,
+        384
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "credentials": {
+        "openAiApi": {
+          "id": "Jowod5NKcwNTE2fL",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "ActivityAgentLanguage": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ParseJSONLanguage",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "ChatOpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "ActivityAgentLanguage",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "ActivityAgentLanguage",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "ChatOpenAITool": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "VectorStoreTool",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "index": 0,
+            "node": "SupabaseVector",
+            "type": "ai_embedding"
+          }
+        ]
+      ]
+    },
+    "SupabaseVector": {
+      "ai_vectorStore": [
+        [
+          {
+            "index": 0,
+            "node": "VectorStoreTool",
+            "type": "ai_vectorStore"
+          }
+        ]
+      ]
+    },
+    "VectorStoreTool": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "ActivityAgentLanguage",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "89bc1a5a-6141-4ffe-b347-611e9b924a61",
+  "activeVersionId": "89bc1a5a-6141-4ffe-b347-611e9b924a61",
+  "versionCounter": 59,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-20T16:19:27.888Z",
+      "createdAt": "2026-05-20T16:19:27.888Z",
+      "role": "workflow:owner",
+      "workflowId": "ubDxiebseBzaDyD6",
+      "projectId": "erc6WXd7dHHtJI8K",
+      "project": {
+        "updatedAt": "2026-05-12T02:40:24.600Z",
+        "createdAt": "2026-05-12T02:38:19.161Z",
+        "id": "erc6WXd7dHHtJI8K",
+        "name": "Victor Benavidez <victor.fbperez@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-06T00:28:38.583Z",
+    "createdAt": "2026-06-06T00:28:38.583Z",
+    "versionId": "89bc1a5a-6141-4ffe-b347-611e9b924a61",
+    "workflowId": "ubDxiebseBzaDyD6",
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "sub_l1",
+        "name": "Execute Workflow Trigger",
+        "position": [
+          0,
+          0
+        ],
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Genera una actividad evaluativa (taller) para multigrado colombiano basada en la planeación:\n\nÁrea: {{ $json.body.area }}\nGrados: {{ $json.body.grados.join(', ') }}\nTema: {{ $json.body.tema }}\nPlaneación: {{ JSON.stringify($json.body.contenido_generado) }}\n\n{{ $json.body.tipo_actividad ? 'INSTRUCCIONES DEL DOCENTE:\\n' + $json.body.tipo_actividad + '\\n' : '' }}\n{{ $json.body.skill_context ? 'REFERENCIA DEL ÁREA (normas de formato + guía pedagógica):\\n' + $json.body.skill_context : '' }}\n\nRESPONDE ÚNICAMENTE con el objeto JSON sin ```, con estos campos:\n1. titulo (string)\n2. instrucciones (string Markdown breve)\n3. contenido_grados (objeto grado→string Markdown, SIN respuestas)\n4. clave_respuestas (si es un taller/actividad de desarrollo: un string Markdown con soluciones + rúbrica; si es una prueba estandarizada de opción múltiple: obligatoriamente un objeto JSON en formato {\"1\": \"A\", \"2\": \"B\", ...} con la letra correcta de cada pregunta)\n\nIMPORTANTE: Escapa los caracteres especiales dentro de los strings JSON (ej. saltos de línea como \\\\n)."
+        },
+        "id": "sub_l2",
+        "name": "ActivityAgentLanguage",
+        "position": [
+          208,
+          0
+        ],
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4
+      },
+      {
+        "parameters": {
+          "model": "gpt-4o",
+          "options": {
+            "temperature": 0.5
+          }
+        },
+        "id": "sub_l3",
+        "name": "ChatOpenAI",
+        "position": [
+          112,
+          208
+        ],
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.1,
+        "credentials": {
+          "openAiApi": {
+            "id": "Jowod5NKcwNTE2fL",
+            "name": "OpenAI account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "let raw = $input.first().json.text ?? $input.first().json.output ?? '';\nif (typeof raw !== 'string') {\n  return [{ json: raw }];\n}\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/i, '').trim();\nconst first = raw.indexOf('{');\nconst last = raw.lastIndexOf('}');\nif (first !== -1 && last !== -1) {\n  raw = raw.substring(first, last + 1);\n}\nreturn [{ json: JSON.parse(raw) }];"
+        },
+        "id": "sub_l4",
+        "name": "ParseJSONLanguage",
+        "position": [
+          544,
+          0
+        ],
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2
+      }
+    ],
+    "connections": {
+      "ActivityAgentLanguage": {
+        "main": [
+          [
+            {
+              "index": 0,
+              "node": "ParseJSONLanguage",
+              "type": "main"
+            }
+          ]
+        ]
+      },
+      "ChatOpenAI": {
+        "ai_languageModel": [
+          [
+            {
+              "index": 0,
+              "node": "ActivityAgentLanguage",
+              "type": "ai_languageModel"
+            }
+          ]
+        ]
+      },
+      "Execute Workflow Trigger": {
+        "main": [
+          [
+            {
+              "index": 0,
+              "node": "ActivityAgentLanguage",
+              "type": "main"
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Victor Benavidez",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-06T00:28:38.702Z",
+        "id": 342,
+        "workflowId": "ubDxiebseBzaDyD6",
+        "versionId": "89bc1a5a-6141-4ffe-b347-611e9b924a61",
+        "event": "activated",
+        "userId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      },
+      {
+        "createdAt": "2026-06-06T00:28:38.687Z",
+        "id": 341,
+        "workflowId": "ubDxiebseBzaDyD6",
+        "versionId": "89bc1a5a-6141-4ffe-b347-611e9b924a61",
+        "event": "deactivated",
+        "userId": "72138ecd-1ddb-45c2-b789-a19ff7a37bdb"
+      }
+    ]
+  }
+}

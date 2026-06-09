@@ -89,6 +89,30 @@ export function useEvaluaciones() {
     return result;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const processEvaluacionLote = useCallback(async (formData: FormData) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("No hay sesión activa");
+
+    const response = await fetch(`${API}/evaluacion/lote`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: response.statusText }));
+      const detailMsg = typeof errData.detail === "object" ? JSON.stringify(errData.detail) : errData.detail;
+      throw new Error(detailMsg || "Error al procesar el lote de evaluaciones");
+    }
+
+    const result = await response.json();
+    
+    scheduleNextPoll();
+    fetchEvaluaciones(true); // Fetch to get the new pending evaluations
+
+    return result;
+  }, [fetchEvaluaciones]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const deleteEvaluacion = useCallback(async (evaluacionId: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("No hay sesión activa");
@@ -128,11 +152,38 @@ export function useEvaluaciones() {
     scheduleNextPoll();
   }, []);
 
+  const updateEvaluacionPartial = useCallback(async (evaluacionId: string, data: { estudiante_id: string, estudiante_nombre: string }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("No hay sesión activa");
+
+    const response = await fetch(`${API}/evaluacion/${evaluacionId}`, {
+      method: "PATCH",
+      headers: { 
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}` 
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errData.detail || "Error al actualizar la evaluación");
+    }
+
+    const result = await response.json();
+    setEvaluaciones((prev) =>
+      prev.map((e) => (e.id === evaluacionId ? { ...e, ...result } : e))
+    );
+    return result;
+  }, []);
+
   return {
     evaluaciones,
     isLoading,
     error,
     processEvaluacion,
+    processEvaluacionLote,
+    updateEvaluacionPartial,
     deleteEvaluacion,
     retryEvaluacion,
     refresh: () => fetchEvaluaciones(),

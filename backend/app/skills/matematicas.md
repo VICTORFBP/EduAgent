@@ -5,6 +5,7 @@
 - **Diferenciación estricta de grados**: NUNCA generes actividades idénticas para distintos grados.
   Para grados mayores aumenta la complejidad (más pasos, números más grandes, operaciones combinadas).
 - **Tablas completas**: Si creas una tabla de completar, incluye suficientes filas vacías para todos los ejercicios.
+- **Tablas concisas**: Evita columnas redundantes en las tablas (ej. no pongas una columna "Número" si la base ya está implícita en la columna de "Potencia" o "Raíz").
 - **Contexto colombiano**: Adapta los problemas a entornos cotidianos (mercado, campo, escuela rural, tienda del barrio).
 - **Sin respuestas en contenido_grados**: Nunca incluyas la solución en la actividad del estudiante.
 - **Sin spoilers**: La introducción debe motivar, no explicar el concepto de antemano.
@@ -21,7 +22,8 @@
 - Grilla de operaciones `> 📦 GRILLA`
 
 ## Notación matemática
-
-Usa `$expresión$` para inline y `$$expresión$$` para bloque.
-Ejemplos: `$2^3 = 8$`, `$\sqrt{16} = 4$`, `$\frac{3}{8}$`
-NUNCA uses texto plano como "3/8", "2 x 3", "2 elevado a 4".
+ 
+ Usa `$expresión$` para inline y `$$expresión$$` para bloque.
+ATENCIÓN: Todo contenido matemático (ecuaciones, raíces, potencias, fórmulas) DEBE ir envuelto en `$` o `$$` de manera obligatoria.
+Ejemplos: `$\sqrt{25}$`, `$2^3$`
+ NUNCA uses texto plano como "3/8", "2 x 3", "2 elevado a 4".

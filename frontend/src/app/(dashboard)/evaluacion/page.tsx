@@ -14,8 +14,10 @@ import {
   Loader2,
   Trash2,
   RefreshCcw,
+  UserPlus,
 } from "lucide-react";
 import { useEvaluaciones } from "@/hooks/useEvaluaciones";
+import { useEstudiantes } from "@/hooks/useEstudiantes";
 import { AREA_COLORS } from "@/lib/types";
 import Link from "next/link";
 import { useState } from "react";
@@ -25,7 +27,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Evaluacion } from "@/lib/types";
 
 function formatDate(iso: string): string {
@@ -44,9 +54,15 @@ function getNotaColor(nota: number | null): string {
 
 export default function EvaluacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion } = useEvaluaciones();
+  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion, updateEvaluacionPartial } = useEvaluaciones();
+  const { estudiantes } = useEstudiantes();
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [selectedEvaluacion, setSelectedEvaluacion] = useState<Evaluacion | null>(null);
+  
+  // Correction Modal
+  const [evalToCorrect, setEvalToCorrect] = useState<Evaluacion | null>(null);
+  const [selectedEstudianteId, setSelectedEstudianteId] = useState<string>("");
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar esta evaluación?")) return;
@@ -68,6 +84,26 @@ export default function EvaluacionPage() {
       alert(e.message);
     } finally {
       setIsActionLoading(null);
+    }
+  };
+
+  const handleCorrect = async () => {
+    if (!evalToCorrect || !selectedEstudianteId) return;
+    setIsCorrecting(true);
+    try {
+      const student = estudiantes.find(s => s.id === selectedEstudianteId);
+      if (!student) throw new Error("Estudiante no encontrado");
+      
+      await updateEvaluacionPartial(evalToCorrect.id, {
+        estudiante_id: student.id,
+        estudiante_nombre: student.nombre
+      });
+      setEvalToCorrect(null);
+      setSelectedEstudianteId("");
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsCorrecting(false);
     }
   };
 
@@ -127,15 +163,22 @@ export default function EvaluacionPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`p-2 rounded-xl shrink-0 ${ev.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                        {ev.procesado_correctamente ? (
+                      <div className={`p-2 rounded-xl shrink-0 ${
+                        !ev.estudiante_id && ev.procesado_correctamente ? "bg-amber-500/10" : 
+                        ev.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"
+                      }`}>
+                        {!ev.estudiante_id && ev.procesado_correctamente ? (
+                          <AlertCircle className="w-4 h-4 text-amber-500" />
+                        ) : ev.procesado_correctamente ? (
                           <CheckCircle className="w-4 h-4 text-emerald-500" />
                         ) : (
                           <AlertCircle className="w-4 h-4 text-red-500" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{ev.estudiante_nombre || "Estudiante"}</p>
+                        <p className={`font-medium text-sm truncate ${!ev.estudiante_id ? "text-amber-500 font-semibold" : ""}`}>
+                          {ev.estudiante_nombre || "Estudiante"}
+                        </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge className={`${AREA_COLORS[ev.area] || "bg-muted"} border-0 text-[10px]`}>
                             {ev.area}
@@ -168,6 +211,20 @@ export default function EvaluacionPage() {
                       )}
                       
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!ev.estudiante_id && ev.procesado_correctamente && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEvalToCorrect(ev as Evaluacion);
+                            }}
+                            title="Asignar Estudiante"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -221,15 +278,20 @@ export default function EvaluacionPage() {
         </>
       )}
 
-      {/* Modal for details */}
+      {/* Modal for Details */}
       <Dialog open={!!selectedEvaluacion} onOpenChange={(open) => !open && setSelectedEvaluacion(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto glass-card border-white/10">
           {selectedEvaluacion && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg ${selectedEvaluacion.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                    {selectedEvaluacion.procesado_correctamente ? (
+                  <div className={`p-1.5 rounded-lg ${
+                    !selectedEvaluacion.estudiante_id ? "bg-amber-500/10" :
+                    selectedEvaluacion.procesado_correctamente ? "bg-emerald-500/10" : "bg-red-500/10"
+                  }`}>
+                    {!selectedEvaluacion.estudiante_id ? (
+                      <AlertCircle className="w-5 h-5 text-amber-500" />
+                    ) : selectedEvaluacion.procesado_correctamente ? (
                       <CheckCircle className="w-5 h-5 text-emerald-500" />
                     ) : (
                       <AlertCircle className="w-5 h-5 text-red-500" />
@@ -239,6 +301,9 @@ export default function EvaluacionPage() {
                 </DialogTitle>
                 <DialogDescription>
                   Revisión detallada procesada por IA.
+                  {!selectedEvaluacion.estudiante_id && selectedEvaluacion.procesado_correctamente && (
+                    <span className="text-amber-500 font-medium ml-2">⚠️ Estudiante sin identificar.</span>
+                  )}
                 </DialogDescription>
               </DialogHeader>
 
@@ -302,6 +367,43 @@ export default function EvaluacionPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal for Manual Correction */}
+      <Dialog open={!!evalToCorrect} onOpenChange={(open) => !open && setEvalToCorrect(null)}>
+        <DialogContent className="glass-card border-white/10">
+          <DialogHeader>
+            <DialogTitle>Asignar Estudiante Manualmente</DialogTitle>
+            <DialogDescription>
+              La IA no pudo identificar con seguridad al estudiante. Selecciona a quién pertenece esta nota ({evalToCorrect?.nota}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Estudiante</label>
+              <Select value={selectedEstudianteId} onValueChange={setSelectedEstudianteId}>
+                <SelectTrigger className="bg-white/5 border-white/10">
+                  <SelectValue placeholder="Selecciona un estudiante..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {estudiantes.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {`${s.nombre} (Grado ${s.grado})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="border-white/10" onClick={() => setEvalToCorrect(null)}>Cancelar</Button>
+            <Button onClick={handleCorrect} disabled={!selectedEstudianteId || isCorrecting} className="gradient-primary text-white">
+              {isCorrecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Asignar Nota
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

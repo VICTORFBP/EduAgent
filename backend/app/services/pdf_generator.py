@@ -196,10 +196,11 @@ def _preprocess_special_marks(text: str) -> str:
         flags=re.MULTILINE,
     )
 
-    # V/F plain-text fallback: detect "Afirmación V F" (or accented) as a
-    # header line followed by plain-text statements, then convert to a
-    # proper Markdown table that the table renderer can pick up.
+    # Fallback: some LLMs output V/F as plain text like:
     text = _convert_vf_plaintext_to_table(text)
+
+    # Process explicit <SALTO> tags used to bypass JSON escaping issues
+    text = text.replace('<SALTO>', '\n')
 
     return text
 

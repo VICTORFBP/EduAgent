@@ -35,3 +35,10 @@ No repliques este encabezado en el contenido.
 - `&nbsp;` u otras entidades HTML
 - Incluir las respuestas correctas en `contenido_grados`
 - Usar `#` nivel 1 de encabezado (reservado para el título principal)
+
+## SERIALIZACIÓN JSON (CRÍTICO)
+Al generar tu respuesta en JSON, debes respetar estrictamente el formato Markdown para tablas y listas.
+- **Saltos de línea en tablas**: Las IAs suelen romper las tablas al omitir los saltos de línea para proteger el JSON. Para evitar esto, DEBES separar cada fila de tu tabla usando la etiqueta `<SALTO>`.
+  - ❌ INCORRECTO: `"| A | B ||---|---|| 1 | 2 |"`
+  - ✅ CORRECTO: `"| A | B |<SALTO>|---|---|<SALTO>| 1 | 2 |"`
+- **Comandos LaTeX**: Debes escapar la barra invertida en los comandos de LaTeX usando doble barra `\\` (ejemplo: `$\\sqrt{25}$`, `$\\frac{1}{2}$`).
