@@ -380,7 +380,7 @@ export default function EvaluacionPage() {
           <div className="py-4 space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Estudiante</label>
-              <Select value={selectedEstudianteId} onValueChange={setSelectedEstudianteId}>
+              <Select value={selectedEstudianteId} onValueChange={(v) => setSelectedEstudianteId(v || "")}>
                 <SelectTrigger className="bg-white/5 border-white/10">
                   <SelectValue placeholder="Selecciona un estudiante..." />
                 </SelectTrigger>

@@ -48,7 +48,7 @@ function QueryParamHandler({ setPlaneacionId, setGrado, setArea, setTipo }: any)
     if (t) setTipo(t);
   }, [searchParams, setPlaneacionId, setGrado, setArea, setTipo]);
 
-  return null;
+  return <div aria-hidden="true" className="hidden" />;
 }
 
 export default function NuevaEvaluacionPage() {
@@ -200,7 +200,8 @@ export default function NuevaEvaluacionPage() {
 
   const selectedPlan = planeaciones.find(p => p.id === planeacionId);
 
-  const handlePlaneacionChange = (val: string) => {
+  const handlePlaneacionChange = (val: string | null) => {
+    if (!val) return;
     setPlaneacionId(val);
     setGrado("");
     if (val !== "none") {
@@ -213,7 +214,7 @@ export default function NuevaEvaluacionPage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-3xl mx-auto">
-      <Suspense fallback={null}>
+      <Suspense fallback={<div aria-hidden="true" className="hidden" />}>
         <QueryParamHandler 
           setPlaneacionId={setPlaneacionId}
           setGrado={setGrado}
@@ -239,8 +240,10 @@ export default function NuevaEvaluacionPage() {
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Modo Selector */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 setModoLote(false);
                 setFiles([]);
@@ -248,7 +251,16 @@ export default function NuevaEvaluacionPage() {
                 setLotePreviews({});
                 setPreview(null);
               }}
-              className={`p-4 rounded-xl border text-left transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setModoLote(false);
+                  setFiles([]);
+                  setLoteMapping({});
+                  setLotePreviews({});
+                  setPreview(null);
+                }
+              }}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
                 !modoLote
                   ? "bg-primary/10 border-primary/30"
                   : "bg-white/5 border-white/10 hover:bg-white/10"
@@ -257,8 +269,10 @@ export default function NuevaEvaluacionPage() {
               <User className={`w-5 h-5 mb-2 ${!modoLote ? "text-primary" : "text-muted-foreground"}`} />
               <p className="text-sm font-medium">Individual</p>
               <p className="text-xs text-muted-foreground">Subir 1 evaluación</p>
-            </button>
-            <button
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 setModoLote(true);
                 setTipo("estandarizada");
@@ -268,7 +282,18 @@ export default function NuevaEvaluacionPage() {
                 setLotePreviews({});
                 setPreview(null);
               }}
-              className={`p-4 rounded-xl border text-left transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setModoLote(true);
+                  setTipo("estandarizada");
+                  setEstudianteId("");
+                  setFiles([]);
+                  setLoteMapping({});
+                  setLotePreviews({});
+                  setPreview(null);
+                }
+              }}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
                 modoLote
                   ? "bg-primary/10 border-primary/30"
                   : "bg-white/5 border-white/10 hover:bg-white/10"
@@ -277,7 +302,7 @@ export default function NuevaEvaluacionPage() {
               <Users className={`w-5 h-5 mb-2 ${modoLote ? "text-primary" : "text-muted-foreground"}`} />
               <p className="text-sm font-medium">Asignación Rápida (Lote)</p>
               <p className="text-xs text-muted-foreground">Subir y asignar manualmente</p>
-            </button>
+            </div>
           </div>
 
           {/* Vincular Planeacion */}
@@ -314,12 +339,12 @@ export default function NuevaEvaluacionPage() {
             {planeacionId !== "none" && selectedPlan && (
               <div className="space-y-2 animate-fade-in">
                 <Label>Grado de la Actividad</Label>
-                <Select value={grado} onValueChange={setGrado}>
+                <Select value={grado} onValueChange={(v) => v && setGrado(v)}>
                   <SelectTrigger className="bg-white/5 border-white/10">
                     <SelectValue placeholder="Selecciona el grado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedPlan.grados.map((g) => (
+                    {selectedPlan.grados.map((g: any) => (
                       <SelectItem key={g} value={g.toString()}>
                         Grado {g}
                       </SelectItem>
@@ -334,15 +359,22 @@ export default function NuevaEvaluacionPage() {
           {!modoLote && (
             <div className="space-y-2 animate-fade-in">
               <Label>Tipo de evaluación</Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { value: "estandarizada", label: "Estandarizada", desc: "Burbujas A/B/C/D", icon: CheckCircle },
                   { value: "abierta", label: "Abierta", desc: "Procedimientos / textos", icon: FileText },
                 ].map((t) => (
-                  <button
+                  <div
                     key={t.value}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setTipo(t.value)}
-                    className={`p-4 rounded-xl border text-left transition-all ${
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setTipo(t.value);
+                      }
+                    }}
+                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
                       tipo === t.value
                         ? "bg-primary/10 border-primary/30"
                         : "bg-white/5 border-white/10 hover:bg-white/10"
@@ -351,7 +383,7 @@ export default function NuevaEvaluacionPage() {
                     <t.icon className={`w-5 h-5 mb-2 ${tipo === t.value ? "text-primary" : "text-muted-foreground"}`} />
                     <p className="text-sm font-medium">{t.label}</p>
                     <p className="text-xs text-muted-foreground">{t.desc}</p>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -449,7 +481,7 @@ export default function NuevaEvaluacionPage() {
                           <div className="flex-1 min-w-0">
                              <p className="text-sm truncate" title={f.name}>{f.name}</p>
                              <div className="select-no-trigger">
-                               <Select value={loteMapping[f.name] || ""} onValueChange={(val) => setLoteMapping(prev => ({...prev, [f.name]: val}))}>
+                               <Select value={loteMapping[f.name] || ""} onValueChange={(val) => setLoteMapping(prev => ({...prev, [f.name]: val || ""}))}>
                                  <SelectTrigger className="mt-2 h-9 text-xs bg-black/20 border-white/10">
                                    <SelectValue placeholder="Selecciona el estudiante...">
                                      {loteMapping[f.name] && estudiantes.find(s => s.id === loteMapping[f.name])
