@@ -182,7 +182,7 @@ def _preprocess_special_marks(text: str) -> str:
 
     # Primary: "A. [ ] texto" or "A) [ ] texto" (canonical with checkbox)
     text = re.sub(
-        r'^([A-Ea-e])[.)]\s*\[\s*\]\s*(.+)$',
+        r'^\s*([A-Ea-e])[.)]\s*\[\s*\]\s*(.+)$',
         _opcion,
         text,
         flags=re.MULTILINE,
@@ -190,7 +190,7 @@ def _preprocess_special_marks(text: str) -> str:
     # Fallback: "A. texto" or "A) texto" without checkbox
     # Only matches if NOT already converted (no \x00 on that line)
     text = re.sub(
-        r'^([A-Ea-e])[.)]\ +(?![\[\x00])(.+)$',
+        r'^\s*([A-Ea-e])[.)]\ +(?![\[\x00])(.+)$',
         _opcion,
         text,
         flags=re.MULTILINE,
@@ -199,8 +199,7 @@ def _preprocess_special_marks(text: str) -> str:
     # Fallback: some LLMs output V/F as plain text like:
     text = _convert_vf_plaintext_to_table(text)
 
-    # Process explicit <SALTO> tags used to bypass JSON escaping issues
-    text = text.replace('<SALTO>', '\n')
+    # (Moved <SALTO> replacement to _markdown_to_typst to avoid HTML stripping)
 
     return text
 
@@ -634,6 +633,16 @@ def _markdown_to_typst(text: str) -> str:
     """
     if not text:
         return ""
+
+    # Process explicit <SALTO> tags used to bypass JSON escaping issues
+    # Must be done BEFORE HTML stripping to prevent <SALTO> from being deleted
+    text = text.replace('<SALTO>', '\n')
+
+    # Force un-indent of tables (mistune fails if tables are indented inside lists without blank lines)
+    text = re.sub(r'(?m)^\s+(\|.*\|)\s*$', r'\1', text)
+    
+    # Force blank line before table if it's immediately following text
+    text = re.sub(r'(?m)^([^|\n\s].*)\n(\|.*\|)$', r'\1\n\n\2', text)
 
     # 0. Strip residual HTML from LLM
     text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)

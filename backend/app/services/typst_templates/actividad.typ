@@ -149,7 +149,7 @@
     let cp = color-principal.get()
     block(below: 1.2em, width: 100%)[
       #table(
-        columns: cols,
+        columns: (1fr,) * cols,
         stroke: 0.5pt + rgb("#d1d5db"),
         inset: (x: 10pt, y: 8pt),
         fill: (x, y) => if y == 0 { cp } else if calc.even(y) { rgb("#f9fafb") } else { white },
