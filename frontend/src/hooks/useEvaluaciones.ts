@@ -16,7 +16,6 @@ export function useEvaluaciones() {
   const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pollTimer = useRef<NodeJS.Timeout | null>(null);
 
   const supabase = createClient();
 
@@ -29,14 +28,6 @@ export function useEvaluaciones() {
       const data = await apiGet<Evaluacion[]>("/evaluacion/", session.access_token);
       setEvaluaciones(data);
       setError(null);
-
-      // If there are still pending evaluations, schedule another poll
-      const hasPending = data.some((e) => !e.procesado_correctamente && !e.nota);
-      if (hasPending) {
-        scheduleNextPoll();
-      } else {
-        clearPoll();
-      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -44,23 +35,22 @@ export function useEvaluaciones() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scheduleNextPoll = () => {
-    if (pollTimer.current) clearTimeout(pollTimer.current);
-    pollTimer.current = setTimeout(() => {
-      fetchEvaluaciones(true); // quiet refresh (no spinner)
-    }, POLL_INTERVAL_MS);
-  };
+  const hasPending = evaluaciones.some((e) => !e.procesado_correctamente && e.nota === null && !e.error_ocr);
 
-  const clearPoll = () => {
-    if (pollTimer.current) {
-      clearTimeout(pollTimer.current);
-      pollTimer.current = null;
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (hasPending) {
+      timer = setInterval(() => {
+        fetchEvaluaciones(true); // quiet refresh
+      }, POLL_INTERVAL_MS);
     }
-  };
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [hasPending, fetchEvaluaciones]);
 
   useEffect(() => {
     fetchEvaluaciones();
-    return () => clearPoll();
   }, [fetchEvaluaciones]);
 
   /** Submit a new evaluation via FormData. Returns backend record immediately. */
@@ -82,9 +72,8 @@ export function useEvaluaciones() {
 
     const result = await response.json();
 
-    // Optimistically add to list and start polling
+    // Optimistically add to list. The useEffect will automatically start polling.
     setEvaluaciones((prev) => [result.data, ...prev].filter(Boolean));
-    scheduleNextPoll();
 
     return result;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -107,8 +96,7 @@ export function useEvaluaciones() {
 
     const result = await response.json();
     
-    scheduleNextPoll();
-    fetchEvaluaciones(true); // Fetch to get the new pending evaluations
+    fetchEvaluaciones(true); // Fetch to get the new pending evaluations. The useEffect will handle polling.
 
     return result;
   }, [fetchEvaluaciones]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -149,7 +137,6 @@ export function useEvaluaciones() {
         e.id === evaluacionId ? { ...e, procesado_correctamente: false, error_ocr: null } : e
       )
     );
-    scheduleNextPoll();
   }, []);
 
   const updateEvaluacionPartial = useCallback(async (evaluacionId: string, data: { estudiante_id: string, estudiante_nombre: string }) => {

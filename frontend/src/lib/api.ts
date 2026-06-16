@@ -39,6 +39,7 @@ async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<
     method,
     headers: fetchHeaders,
     body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
   });
 
   if (!response.ok) {

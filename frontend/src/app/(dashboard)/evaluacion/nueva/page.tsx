@@ -53,10 +53,13 @@ function QueryParamHandler({ setPlaneacionId, setGrado, setArea, setTipo }: any)
 
 export default function NuevaEvaluacionPage() {
   const { estudiantes } = useEstudiantes();
-  const { processEvaluacion } = useEvaluaciones();
+  const { evaluaciones, processEvaluacion } = useEvaluaciones();
   const { planeaciones, fetchPlaneaciones } = usePlaneaciones();
   
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     fetchPlaneaciones();
   }, [fetchPlaneaciones]);
 
@@ -86,6 +89,27 @@ export default function NuevaEvaluacionPage() {
     procesados?: string[];
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Auto-update result when polling finishes
+  useEffect(() => {
+    if (result && result.status === "processing" && result.id && !modoLote) {
+      const updatedEval = evaluaciones.find(e => e.id === result.id);
+      if (updatedEval && updatedEval.procesado_correctamente) {
+        setResult({
+          ...result,
+          status: "success",
+          nota: Number(updatedEval.nota),
+          retroalimentacion: updatedEval.retroalimentacion || "",
+        });
+      } else if (updatedEval && updatedEval.error_ocr) {
+        setResult({
+          ...result,
+          status: "error",
+          error_ocr: updatedEval.error_ocr,
+        });
+      }
+    }
+  }, [evaluaciones, result, modoLote]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fs = Array.from(e.target.files || []);
@@ -211,6 +235,18 @@ export default function NuevaEvaluacionPage() {
       }
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="p-4 lg:p-6 space-y-6 max-w-3xl mx-auto">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+          <div className="w-4 h-4 rounded-full bg-white/10" />
+          <div className="h-4 w-32 bg-white/10 rounded" />
+        </div>
+        <div className="h-[400px] bg-white/5 rounded-xl border border-white/5 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-3xl mx-auto">
@@ -463,8 +499,8 @@ export default function NuevaEvaluacionPage() {
                      <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Modificar archivos</Button>
                    </div>
                    <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-                     {files.map((f, i) => (
-                        <div key={i} className="flex items-center gap-3 bg-white/5 p-3 rounded border border-white/10">
+                     {files.map((f) => (
+                        <div key={f.name} className="flex items-center gap-3 bg-white/5 p-3 rounded border border-white/10">
                           {lotePreviews[f.name] ? (
                             <div 
                               className="relative group cursor-zoom-in shrink-0" 
@@ -611,6 +647,32 @@ export default function NuevaEvaluacionPage() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="border-white/10" onClick={() => setResult(null)}>
                 Procesar otra
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Card */}
+      {result && result.status === "error" && result.error_ocr && !modoLote && (
+        <Card className="glass-card border-red-500/30 bg-red-500/5 animate-slide-up">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="font-bold text-xl text-red-400">
+              Error al Procesar
+            </h3>
+            <p className="text-sm text-red-300 max-w-md mx-auto">
+              {result.error_ocr}
+            </p>
+            <div className="pt-4 flex justify-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setResult(null)}
+                className="border-white/10"
+              >
+                Intentar de nuevo
               </Button>
             </div>
           </CardContent>

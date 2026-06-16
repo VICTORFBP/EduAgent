@@ -220,6 +220,7 @@ export function ActividadDialog({
                   ))}
                 </div>
               )}
+              {/* AI Image section removed */}
               <div className="flex-1 w-full bg-neutral-950 rounded-xl border border-white/5 overflow-hidden relative min-h-[500px]">
                 {displayGrade == null ? (
                   <p className="text-sm text-muted-foreground p-8 text-center mt-20">
