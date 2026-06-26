@@ -439,7 +439,7 @@ class TypstRenderer(mistune.BaseRenderer):
             ).strip()
             if rest_text:
                 instruccion = (instruccion + ' ' + rest_text).strip()
-            return f'#dibujo("{_escape_str_arg(instruccion)}")\n\n'
+            return f'#dibujo[{instruccion}]\n\n'
 
         if 'GRILLA' in first_upper:
             items = [l.strip() for l in rest_lines if l.strip()]
@@ -452,7 +452,7 @@ class TypstRenderer(mistune.BaseRenderer):
                 r'(?i)^[\U0001f4e6\U0001f4cc\s]*(RECUADRO)\s*[:\-]?\s*', '', first
             ).strip()
             if titulo_bq:
-                return f'#recuadro(titulo: "{_escape_str_arg(titulo_bq)}")[\n{rest_text}\n]\n\n'
+                return f'#recuadro(titulo: [{titulo_bq}])[\n{rest_text}\n]\n\n'
             return f'#recuadro[\n{rest_text}\n]\n\n'
 
         # Generic blockquote
@@ -471,19 +471,19 @@ class TypstRenderer(mistune.BaseRenderer):
                 for inline in child.get("children", []):
                     t = inline["type"]
                     if t == "text":
-                        seg.append(inline.get("raw", ""))
+                        seg.append(self._process_raw(inline.get("raw", "")))
                     elif t in ("softbreak", "linebreak"):
                         lines.append("".join(seg))
                         seg = []
                     elif t == "strong":
                         inner = "".join(
-                            n.get("raw", "") for n in inline.get("children", [])
+                            self._process_raw(n.get("raw", "")) for n in inline.get("children", [])
                             if n["type"] == "text"
                         )
                         seg.append(f"*{inner}*")
                     elif t == "emphasis":
                         inner = "".join(
-                            n.get("raw", "") for n in inline.get("children", [])
+                            self._process_raw(n.get("raw", "")) for n in inline.get("children", [])
                             if n["type"] == "text"
                         )
                         seg.append(f"_{inner}_")
@@ -580,8 +580,8 @@ class TypstRenderer(mistune.BaseRenderer):
                 "respuesta", "escribe tu", "desarrolla"
             )
             if any(kw in header_lower for kw in RESPONSE_KEYWORDS):
-                titulo = _escape_str_arg(head_cells[0].strip())
-                return f'#caja-respuesta(titulo: "{titulo}")\n\n'
+                titulo = head_cells[0].strip()
+                return f'#caja-respuesta(titulo: [{titulo}])\n\n'
 
         all_cells = [f'[{c}]' for c in head_cells]
         if tbody:

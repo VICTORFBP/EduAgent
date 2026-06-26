@@ -135,7 +135,13 @@ export function ActividadDialog({
   const needsRegenerate =
     claveRaw != null &&
     claveRaw !== "" &&
-    !isPlainMarkdownString(claveRaw);
+    !isPlainMarkdownString(claveRaw) &&
+    !isPruebaEstandarizada;
+
+  let displayClave: unknown = claveRaw;
+  if (claveRaw && typeof claveRaw === "object" && displayGrade != null && !isPruebaEstandarizada) {
+    displayClave = getGradeContent(claveRaw as Record<string, string>, displayGrade) ?? claveRaw;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,7 +271,7 @@ export function ActividadDialog({
               )}
               <div className="bg-white text-black p-8 sm:p-12 shadow-2xl rounded-sm border-2 border-emerald-500/40">
                 <ActividadMarkdown
-                  content={claveRaw ?? ""}
+                  content={displayClave ?? ""}
                   variant="document"
                 />
               </div>

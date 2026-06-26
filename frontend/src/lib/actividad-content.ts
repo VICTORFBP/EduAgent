@@ -13,7 +13,7 @@ export function coerceActividadMarkdown(value: unknown): string {
     return parts.join("\n\n");
   }
   if (typeof value === "object") {
-    return JSON.stringify(value, null, 2);
+    return "### Respuestas (Formato Crudo)\n```json\n" + JSON.stringify(value, null, 2) + "\n```";
   }
   return String(value);
 }
