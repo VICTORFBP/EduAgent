@@ -2,20 +2,32 @@ import { useState, useCallback } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
+let cachedPlaneaciones: any[] | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 30000;
+
 export function usePlaneaciones() {
-  const [planeaciones, setPlaneaciones] = useState<any[]>([]);
+  const [planeaciones, setPlaneaciones] = useState<any[]>(cachedPlaneaciones || []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
 
-  const fetchPlaneaciones = useCallback(async () => {
+  const fetchPlaneaciones = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && cachedPlaneaciones && (now - lastFetchTime < CACHE_TTL_MS)) {
+      setPlaneaciones(cachedPlaneaciones);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || undefined;
       const data = await apiGet<any[]>("/planeacion/", token);
+      cachedPlaneaciones = data;
+      lastFetchTime = Date.now();
       setPlaneaciones(data);
     } catch (err: any) {
       setError(err.message || "Error al cargar planeaciones");
@@ -66,7 +78,11 @@ export function usePlaneaciones() {
         feedback: req.feedback,
       };
       const result = await apiPost<any>("/planeacion/", payload, token);
-      setPlaneaciones((prev) => [result, ...prev]);
+      setPlaneaciones((prev) => {
+        const newData = [result, ...prev];
+        cachedPlaneaciones = newData;
+        return newData;
+      });
       return result;
     } catch (err: any) {
       setError(err.message || "Error al generar planeación");
@@ -87,7 +103,11 @@ export function usePlaneaciones() {
         correcciones,
         contenido_generado: contenidoGenerado
       }, token);
-      setPlaneaciones((prev) => prev.map((p) => (p.id === id ? result : p)));
+      setPlaneaciones((prev) => {
+        const newData = prev.map((p) => (p.id === id ? result : p));
+        cachedPlaneaciones = newData;
+        return newData;
+      });
       return result;
     } catch (err: any) {
       setError(err.message || "Error al validar planeación");
@@ -120,7 +140,11 @@ export function usePlaneaciones() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || undefined;
       await apiDelete(`/planeacion/${id}`, token);
-      setPlaneaciones((prev) => prev.filter((p) => p.id !== id));
+      setPlaneaciones((prev) => {
+        const newData = prev.filter((p) => p.id !== id);
+        cachedPlaneaciones = newData;
+        return newData;
+      });
     } catch (err: any) {
       setError(err.message || "Error al eliminar planeación");
       throw err;

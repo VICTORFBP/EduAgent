@@ -66,23 +66,29 @@ export default function DashboardPage() {
       if (!session) return;
       const token = session.access_token;
 
-      // Fetch user name
-      const { data: docenteData } = await supabase
-        .from("docentes").select("nombre").eq("id", session.user.id).single();
-      setDocente({ nombre: docenteData?.nombre || session.user.email?.split("@")[0] || "Docente" });
+      // Optimistic user name from metadata
+      const metaName = session.user.user_metadata?.nombre || session.user.user_metadata?.full_name || session.user.email?.split("@")[0];
+      setDocente({ nombre: metaName || "Docente" });
 
-      // Fetch real metrics and activity
       try {
-        const [m, a, p] = await Promise.all([
-          apiGet<DashboardMetricas>("/dashboard/metricas", token),
-          apiGet<ActividadReciente[]>("/dashboard/actividad", token),
-          apiGet<PilotMetrics>("/dashboard/metricas-piloto", token),
+        const [initData, docenteRes] = await Promise.all([
+          apiGet<{metricas: DashboardMetricas, actividad: ActividadReciente[], pilot: PilotMetrics}>("/dashboard/init", token).catch(() => null),
+          (async () => {
+             const res = await supabase.from("docentes").select("nombre").eq("id", session.user.id).single();
+             return res;
+          })().catch(() => ({ data: null }))
         ]);
-        setMetricas(m);
-        setActividad(a);
-        setPilot(p);
-      } catch {
-        // keep defaults on error
+
+        if (initData) {
+          setMetricas(initData.metricas);
+          setActividad(initData.actividad);
+          setPilot(initData.pilot);
+        }
+        if (docenteRes?.data?.nombre) {
+          setDocente({ nombre: docenteRes.data.nombre });
+        }
+      } catch (err) {
+        console.error("Dashboard error:", err);
       } finally {
         setLoading(false);
       }

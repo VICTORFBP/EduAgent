@@ -132,10 +132,20 @@ export function ActividadDialog({
       : null;
 
   const claveRaw = actividad?.clave_respuestas;
+
+  // needsRegenerate = true only when clave_respuestas is a non-string, non-grade-keyed object
+  // (i.e. a truly unknown/old format). Per-grade objects like {2: "...", 3: "..."} are valid.
+  const isPerGradeObject =
+    claveRaw != null &&
+    typeof claveRaw === "object" &&
+    !Array.isArray(claveRaw) &&
+    Object.values(claveRaw as object).every((v) => typeof v === "string");
+
   const needsRegenerate =
     claveRaw != null &&
     claveRaw !== "" &&
     !isPlainMarkdownString(claveRaw) &&
+    !isPerGradeObject &&
     !isPruebaEstandarizada;
 
   let displayClave: unknown = claveRaw;

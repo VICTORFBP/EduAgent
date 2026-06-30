@@ -10,10 +10,9 @@ import {
   TrendingUp,
   ClipboardCheck,
 } from "lucide-react";
-import { MOCK_ESTUDIANTES } from "@/lib/mock-data";
+import { useState } from "react";
+import { useEstudiantes } from "@/hooks/useEstudiantes";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 function getNotaColor(nota: number): string {
   if (nota >= 8.0) return "text-emerald-500";
@@ -24,33 +23,7 @@ function getNotaColor(nota: number): string {
 export default function EstudiantesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGrado, setSelectedGrado] = useState<number | null>(null);
-  const [estudiantes, setEstudiantes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get teacher profile to know which grades they have assigned
-      const { data: docente } = await supabase.from("docentes").select("grados_asignados, rol").eq("id", user.id).single();
-      
-      let query = supabase.from("estudiantes").select("*").order("grado");
-      
-      // If not admin, only fetch assigned students
-      if (docente && docente.rol !== "admin") {
-        query = query.eq("docente_id", user.id);
-      }
-
-      const { data: estData } = await query;
-      if (estData) {
-        setEstudiantes(estData);
-      }
-      setLoading(false);
-    }
-    fetchData();
-  }, []);
+  const { estudiantes, isLoading: loading } = useEstudiantes();
 
   const filtered = estudiantes.filter((s) => {
     const matchSearch = s.nombre.toLowerCase().includes(searchTerm.toLowerCase());

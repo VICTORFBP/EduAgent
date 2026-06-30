@@ -10,7 +10,7 @@
 - **Sin respuestas en contenido_grados**: Nunca incluyas la solución en la actividad del estudiante.
 - **Sin spoilers**: La introducción debe motivar, no explicar el concepto de antemano.
 - **Mínimo 4 secciones** por grado cuando el tema lo permita: interpretativa (tabla), práctica en grilla, relación de operaciones si aplica, problema contextual rural.
-- **5 a 8 ítems** evaluativos por grado, progresivos en dificultad.
+- **Cantidad de ítems**: Adapta la cantidad a lo solicitado por el docente. Si no especifica cantidad, genera de 5 a 8 ítems evaluativos por grado, progresivos en dificultad.
 
 ## Tipos de pregunta recomendados
 

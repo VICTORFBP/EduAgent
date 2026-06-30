@@ -98,7 +98,7 @@ class SupabaseService:
             return []
         response = (
             self.client.table("evaluaciones")
-            .select("*")
+            .select("id, estudiante_id, estudiante_nombre, docente_id, area, tipo, archivo_path, nota, retroalimentacion, procesado_correctamente, error_ocr, created_at, planeacion_id")
             .eq("docente_id", docente_id)
             .order("created_at", desc=True)
             .execute()
@@ -663,6 +663,177 @@ class SupabaseService:
         except Exception as e:
             logger.error(f"Error calculating global pilot metrics: {e}")
             return {"docentes": [], "global": _empty_pilot_metrics()}
+
+    async def get_dashboard_init(self, docente_id: str) -> dict:
+        """Fetch all dashboard data (stats, activity, pilot metrics) concurrently."""
+        if not self.client:
+            return {
+                "metricas": self._empty_dashboard_stats(),
+                "actividad": [],
+                "pilot": _empty_pilot_metrics()
+            }
+        
+        import asyncio
+        from collections import defaultdict
+        
+        # We wrap the synchronous supabase-py calls in to_thread to run them concurrently
+        # 1. Stats queries
+        async def fetch_planeaciones_count():
+            res = await asyncio.to_thread(lambda: self.client.table("planeaciones").select("id", count="exact").eq("docente_id", docente_id).execute())
+            return res.count or 0
+            
+        async def fetch_evaluaciones_count():
+            res = await asyncio.to_thread(lambda: self.client.table("evaluaciones").select("id", count="exact").eq("docente_id", docente_id).eq("procesado_correctamente", True).execute())
+            return res.count or 0
+            
+        async def fetch_documentos_count():
+            res = await asyncio.to_thread(lambda: self.client.table("documentos").select("id", count="exact").eq("docente_id", docente_id).execute())
+            return res.count or 0
+            
+        async def fetch_estudiantes_count():
+            res = await asyncio.to_thread(lambda: self.client.table("estudiantes").select("id", count="exact").eq("docente_id", docente_id).execute())
+            return res.count or 0
+            
+        # 2. Activity queries
+        async def fetch_act_planeaciones():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("planeaciones").select("id, tema, area, created_at").eq("docente_id", docente_id).order("created_at", desc=True).limit(4).execute())
+                return res.data
+            except Exception:
+                return []
+                
+        async def fetch_act_evaluaciones():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("evaluaciones").select("id, estudiante_nombre, area, procesado_correctamente, created_at").eq("docente_id", docente_id).order("created_at", desc=True).limit(4).execute())
+                return res.data
+            except Exception:
+                return []
+                
+        async def fetch_act_documentos():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("documentos").select("id, nombre, created_at").eq("docente_id", docente_id).order("created_at", desc=True).limit(3).execute())
+                return res.data
+            except Exception:
+                return []
+
+        # 3. Pilot Metrics queries
+        async def fetch_pilot_planes():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("planeaciones").select("id, validada_docente, correcciones").eq("docente_id", docente_id).execute())
+                return res.data
+            except Exception:
+                return []
+
+        async def fetch_pilot_evals():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("evaluaciones").select("id, procesado_correctamente").eq("docente_id", docente_id).execute())
+                return res.data
+            except Exception:
+                return []
+
+        async def fetch_pilot_logs():
+            try:
+                res = await asyncio.to_thread(lambda: self.client.table("interaction_logs").select("duracion_ms").eq("docente_id", docente_id).eq("modulo", "planeacion").eq("exitoso", True).execute())
+                return res.data
+            except Exception:
+                return []
+
+        # Run all 10 queries concurrently
+        results = await asyncio.gather(
+            fetch_planeaciones_count(),
+            fetch_evaluaciones_count(),
+            fetch_documentos_count(),
+            fetch_estudiantes_count(),
+            fetch_act_planeaciones(),
+            fetch_act_evaluaciones(),
+            fetch_act_documentos(),
+            fetch_pilot_planes(),
+            fetch_pilot_evals(),
+            fetch_pilot_logs()
+        )
+        
+        # --- Process Stats ---
+        metricas = {
+            "planeaciones_mes": results[0],
+            "evaluaciones_procesadas": results[1],
+            "documentos_cargados": results[2],
+            "estudiantes_total": results[3],
+        }
+        
+        # --- Process Activity ---
+        activity = []
+        for r in results[4]:
+            activity.append({
+                "id": r["id"], "tipo": "planeacion",
+                "descripcion": f"Planeación generada: {r.get('tema', 'Sin tema')} ({r.get('area', 'Sin área')})",
+                "timestamp": r["created_at"],
+            })
+        for r in results[5]:
+            estado = "✅ Procesada" if r.get("procesado_correctamente") else "⏳ Procesando"
+            activity.append({
+                "id": r["id"], "tipo": "evaluacion",
+                "descripcion": f"Evaluación {estado}: {r.get('estudiante_nombre', '')} — {r.get('area', '')}",
+                "timestamp": r["created_at"],
+            })
+        for r in results[6]:
+            activity.append({
+                "id": r["id"], "tipo": "documento",
+                "descripcion": f"Documento cargado: {r.get('nombre', 'Sin nombre')}",
+                "timestamp": r["created_at"],
+            })
+        activity.sort(key=lambda x: x["timestamp"], reverse=True)
+        activity = activity[:10]
+        
+        # --- Process Pilot Metrics ---
+        planes_data = results[7]
+        evals_data = results[8]
+        logs_data = results[9]
+        
+        total_planes = len(planes_data)
+        validadas = sum(1 for p in planes_data if p.get("validada_docente"))
+        corregidas = sum(1 for p in planes_data if p.get("correcciones"))
+        
+        total_evals = len(evals_data)
+        evals_ok = sum(1 for e in evals_data if e.get("procesado_correctamente"))
+        
+        tiempos = [r["duracion_ms"] for r in logs_data if r.get("duracion_ms")]
+        tiempo_promedio_ms = int(sum(tiempos) / len(tiempos)) if tiempos else 0
+        
+        BASELINE_MS = 9_000_000
+        tiempo_ahorrado_ms = max(0, BASELINE_MS - tiempo_promedio_ms) * total_planes
+        tiempo_ahorrado_horas = round(tiempo_ahorrado_ms / 3_600_000, 1)
+        
+        tasa_alineacion = round((validadas - corregidas) / total_planes * 100) if total_planes > 0 else 0
+        tasa_correccion = round(corregidas / total_planes * 100) if total_planes > 0 else 0
+        tasa_ocr = round(evals_ok / total_evals * 100) if total_evals > 0 else 0
+        
+        pilot = {
+            "tiempo_promedio_planeacion_ms": tiempo_promedio_ms,
+            "tiempo_ahorrado_horas": tiempo_ahorrado_horas,
+            "tasa_alineacion_men": max(0, min(100, tasa_alineacion)),
+            "tasa_correccion_rag": max(0, min(100, tasa_correccion)),
+            "tasa_exito_ocr": max(0, min(100, tasa_ocr)),
+            "total_planeaciones": total_planes,
+            "total_evaluaciones": total_evals,
+            "total_evaluaciones_ok": evals_ok,
+            "total_planeaciones_validadas": validadas,
+            "total_planeaciones_corregidas": corregidas,
+        }
+        
+        return {
+            "metricas": metricas,
+            "actividad": activity,
+            "pilot": pilot
+        }
+        
+    def _empty_dashboard_stats(self) -> dict:
+        return {
+            "planeaciones_mes": 0,
+            "evaluaciones_procesadas": 0,
+            "documentos_cargados": 0,
+            "estudiantes_total": 0,
+        }
+
 
 
 def _empty_pilot_metrics() -> dict:

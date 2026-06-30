@@ -119,13 +119,14 @@ Siempre que sea pedagógicamente útil, incluye un fragmento de lectura contextu
 
 Para listas de ejercicios cortos en paralelo (ideal para operaciones matemáticas o emparejamiento rápido). NUNCA generes listas largas con guiones bajos (`___`) sueltas; agrupalas en una grilla para ahorrar espacio.
 
-**Ejemplos de uso (¡Aprende de esto!):**
-- ❌ INCORRECTO (Lista suelta):
-  `- $3 \times 4 =$ ___`
-  `- $5 \times 6 =$ ___`
-  `- $7 \times 8 =$ ___`
+> ⚠️ **CRÍTICO**: Dentro de un bloque GRILLA cada ítem va en su propia línea con `> `. NUNCA uses `<SALTO>` dentro de la GRILLA — `<SALTO>` es EXCLUSIVAMENTE para filas de tablas Markdown `|...|`.
 
-- ✅ CORRECTO (Usar el componente):
+**Ejemplos de uso (¡Aprende de esto!):**
+- ❌ INCORRECTO (usar `<SALTO>` en grilla):
+  `> 📦 GRILLA`
+  `> $3 \times 4 =$ ___<SALTO>$5 \times 6 =$ ___`
+
+- ✅ CORRECTO (cada ítem en su propia línea):
   `> 📦 GRILLA`
   `> $3 \times 4 =$ ___`
   `> $5 \times 6 =$ ___`
@@ -152,3 +153,4 @@ No uses `#` nivel 1, está reservado para el título del documento.
 - Usar `\( \)` o `\[ \]` para matemáticas (usa `$` y `$$`)
 - Selección múltiple sin casilla `[ ]`
 - Verdadero/Falso como texto plano (siempre tabla)
+- `<SALTO>` dentro de bloques GRILLA (solo se usa en tablas `|...|`)

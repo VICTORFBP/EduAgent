@@ -6,6 +6,8 @@ export interface Estudiante {
   id: string;
   nombre: string;
   grado: number;
+  evaluaciones_count?: number;
+  promedio_notas?: number;
 }
 
 export function useEstudiantes() {

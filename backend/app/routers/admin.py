@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+import time
 from app.middleware.auth_middleware import CurrentUser
 from app.services.supabase_service import supabase_service
 
@@ -13,8 +14,24 @@ router = APIRouter()
 # Auth dependency
 # ──────────────────────────────────────────────
 
+_admin_cache = {}
+ADMIN_CACHE_TTL = 300  # 5 minutes
+
 async def require_admin(current_user: dict = CurrentUser) -> dict:
     """Dependency: only users with rol='admin' can access admin endpoints."""
+    user_id = current_user["id"]
+    now = time.time()
+    
+    if user_id in _admin_cache:
+        role, timestamp = _admin_cache[user_id]
+        if now - timestamp < ADMIN_CACHE_TTL:
+            if role != "admin":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Se requieren permisos de administrador.",
+                )
+            return current_user
+
     client = supabase_service.client
     if not client:
         raise HTTPException(status_code=500, detail="Supabase client not available")
@@ -22,11 +39,15 @@ async def require_admin(current_user: dict = CurrentUser) -> dict:
     response = (
         client.table("docentes")
         .select("rol")
-        .eq("id", current_user["id"])
+        .eq("id", user_id)
         .single()
         .execute()
     )
-    if not response.data or response.data.get("rol") != "admin":
+    
+    role = response.data.get("rol") if response.data else None
+    _admin_cache[user_id] = (role, now)
+    
+    if role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Se requieren permisos de administrador.",
@@ -240,7 +261,16 @@ async def delete_estudiante(
 # Métricas del Piloto (admin only)
 # ──────────────────────────────────────────────
 
+_pilot_metrics_cache = {"data": None, "timestamp": 0}
+
 @router.get("/metricas-piloto")
 async def get_metricas_piloto_global(admin_user: dict = Depends(require_admin)):
     """Return aggregated pilot metrics across all docentes."""
-    return await supabase_service.get_global_pilot_metrics()
+    now = time.time()
+    if _pilot_metrics_cache["data"] is not None and now - _pilot_metrics_cache["timestamp"] < ADMIN_CACHE_TTL:
+        return _pilot_metrics_cache["data"]
+        
+    data = await supabase_service.get_global_pilot_metrics()
+    _pilot_metrics_cache["data"] = data
+    _pilot_metrics_cache["timestamp"] = now
+    return data

@@ -16,7 +16,7 @@ El sistema convierte automáticamente el Markdown estructurado a los componentes
 ## Densidad del contenido
 - El contenido debe llenar de manera natural al menos el 70% de la página
 - No incluyas saltos de línea vacíos consecutivos innecesarios
-- Cada sección debe tener entre 5 y 8 ítems de actividad por grado
+- Adapta la cantidad de ejercicios a lo que solicite el docente. Si no se especifica, usa entre 5 y 8 ítems de actividad por grado.
 - Diferencia claramente el contenido de cada grado (no repitas ejercicios idénticos)
 
 ## Separación de secciones
@@ -41,4 +41,8 @@ Al generar tu respuesta en JSON, debes respetar estrictamente el formato Markdow
 - **Saltos de línea en tablas**: Las IAs suelen romper las tablas al omitir los saltos de línea para proteger el JSON. Para evitar esto, DEBES separar cada fila de tu tabla usando la etiqueta `<SALTO>`.
   - ❌ INCORRECTO: `"| A | B ||---|---|| 1 | 2 |"`
   - ✅ CORRECTO: `"| A | B |<SALTO>|---|---|<SALTO>| 1 | 2 |"`
+- **⚠️ `<SALTO>` es SOLO para tablas `|...|`**: NUNCA uses `<SALTO>` dentro de bloques `> 📦 GRILLA`. En la GRILLA, cada ítem va en su propia línea con `\n> ` (salto de línea real + `> `).
+  - ❌ INCORRECTO en GRILLA: `"> 📦 GRILLA\n> $3 \\times 4 =$ ___<SALTO>$5 \\times 6 =$ ___"`
+  - ✅ CORRECTO en GRILLA: `"> 📦 GRILLA\n> $3 \\times 4 =$ ___\n> $5 \\times 6 =$ ___"`
 - **Comandos LaTeX**: Debes escapar la barra invertida en los comandos de LaTeX usando doble barra `\\` (ejemplo: `$\\sqrt{25}$`, `$\\frac{1}{2}$`).
+
