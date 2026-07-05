@@ -7,7 +7,7 @@ import {
   BookOpen,
   ClipboardCheck,
   FolderOpen,
-  MessageSquare,
+  Bot,
   Users,
   GraduationCap,
   LogOut,
@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   { label: "Planeación", href: "/planeacion", icon: BookOpen },
   { label: "Evaluación", href: "/evaluacion", icon: ClipboardCheck },
   { label: "Documentos", href: "/documentos", icon: FolderOpen },
-  { label: "Consulta RAG", href: "/consulta", icon: MessageSquare },
+  { label: "Agente IA", href: "/consulta", icon: Bot },
   { label: "Estudiantes", href: "/estudiantes", icon: Users },
 ];
 

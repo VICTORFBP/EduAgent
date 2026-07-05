@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     n8n_webhook_verificar: str = "http://localhost:5678/webhook/verificar-actividad"
     n8n_webhook_secret: str = ""
 
+    # --- OpenAI Agent ---
+    openai_api_key: str = ""
+    agent_model: str = "gpt-4o-mini"
+
     # --- App ---
     cors_origins: str = "http://localhost:3000"
 
