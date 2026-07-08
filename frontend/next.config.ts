@@ -9,6 +9,30 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["overview-headset-pouch.ngrok-free.dev", "vicdev.org"],
+  async headers() {
+    return [
+      {
+        // HTML pages: never cache — prevents stale HTML/JS hydration mismatches
+        source: "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
+      {
+        // Next.js static assets have content hashes — safe to cache forever
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

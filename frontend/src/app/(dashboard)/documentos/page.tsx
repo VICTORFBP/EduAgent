@@ -130,7 +130,7 @@ export default function DocumentosPage() {
                           </div>
                           <p className="text-xs text-muted-foreground mt-1.5">{formatDate(doc.created_at)}</p>
                         </div>
-                          <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                             {!doc.vectorizado && rol === "admin" && (
                               <Button
                                 variant="ghost"
@@ -200,7 +200,7 @@ export default function DocumentosPage() {
                           </div>
                           <p className="text-xs text-muted-foreground mt-1.5">{formatDate(doc.created_at)}</p>
                         </div>
-                        <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                           {!doc.vectorizado && (
                             <Button
                               variant="ghost"

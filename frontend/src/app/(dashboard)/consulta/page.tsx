@@ -8,7 +8,7 @@ import {
   Sparkles, AlertCircle, RefreshCw, Plus, Trash2,
   MessageSquare, Menu, X, Wrench, CheckCircle2,
   Loader2, BookOpen, BarChart3, Users, FileText,
-  ClipboardList,
+  ClipboardList, Mic
 } from "lucide-react";
 import type { ChatMessage, AgentToolCall } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -221,7 +221,7 @@ function SessionsSidebar({ sessions, activeId, onSelect, onNew, onDelete }: {
               <p className="text-[10px] text-muted-foreground/60 mt-0.5">{relativeTime(session.updatedAt)} · {session.messages.length} msg</p>
             </div>
             <button onClick={e => { e.stopPropagation(); onDelete(session.id); }}
-              className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded-md hover:bg-destructive/20 hover:text-destructive transition-all"
+              className="opacity-100 md:opacity-0 md:group-hover:opacity-100 shrink-0 p-1 rounded-md hover:bg-destructive/20 hover:text-destructive transition-all"
               title="Eliminar conversación"
             >
               <Trash2 className="w-3 h-3" />
@@ -246,10 +246,12 @@ export default function AgentePage() {
   const [error, setError] = useState<string | null>(null);
   const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recognitionRef = useRef<any>(null);
   const supabase = createClient();
 
   const activeSession = sessions.find(s => s.id === activeSessionId) ?? null;
@@ -527,6 +529,55 @@ export default function AgentePage() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("El reconocimiento de voz no está soportado en este navegador.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = "es-ES";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setInput(prev => prev + (prev.length > 0 && !prev.endsWith(" ") ? " " : "") + finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Error de reconocimiento de voz", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  }, [isListening]);
+
   /* ── Render ── */
   return (
     <>
@@ -675,10 +726,16 @@ export default function AgentePage() {
                 className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 min-h-[44px] max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
                 rows={1}
               />
-              <Button onClick={handleSend} disabled={!input.trim() || isLoading}
-                className="gradient-primary text-white self-end h-11 px-4 disabled:opacity-40">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
+              <div className="flex gap-2 self-end shrink-0">
+                <Button onClick={toggleListening} variant="outline" type="button" title="Dictado por voz"
+                  className={`h-11 px-3 ${isListening ? "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Mic className={`w-4 h-4 ${isListening ? "animate-pulse" : ""}`} />
+                </Button>
+                <Button onClick={handleSend} disabled={!input.trim() || isLoading}
+                  className="gradient-primary text-white h-11 px-4 disabled:opacity-40">
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
             <p className="text-[10px] text-muted-foreground text-center mt-2">
               Agente EduAgent · Puede cometer errores · Historial privado por usuario

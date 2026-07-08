@@ -31,8 +31,10 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [rol, setRol] = useState<string>("docente");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     async function checkRole() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -87,7 +89,9 @@ export function AppSidebar() {
               {isActive && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-sidebar-primary" />
               )}
-              <item.icon className={cn("w-5 h-5 shrink-0", isActive && "text-sidebar-primary")} />
+              <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                <item.icon className={cn("w-5 h-5 shrink-0", isActive && "text-sidebar-primary")} />
+              </div>
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );
