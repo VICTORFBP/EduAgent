@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.routers import auth, planeacion, evaluacion, documentos, consulta, dashboard, admin, callback
+from app.routers import auth, planeacion, evaluacion, documentos, consulta, dashboard, admin, callback, agente
 
 settings = get_settings()
 
@@ -36,6 +36,7 @@ app.include_router(documentos.router, prefix="/documentos", tags=["Documentos"])
 app.include_router(consulta.router, prefix="/consulta", tags=["Consulta RAG"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(callback.router, prefix="/callback", tags=["Callbacks n8n"])
+app.include_router(agente.router, prefix="/agente", tags=["Agente IA"])
 
 
 @app.get("/", tags=["Health"])

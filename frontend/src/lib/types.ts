@@ -103,12 +103,21 @@ export interface Estudiante {
   promedio_notas?: number;
 }
 
-// ---- Consulta RAG ----
+// ---- Consulta RAG / Agent ----
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  status: "running" | "completed" | "error";
+  result?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   sources?: ChatSource[];
+  tool_calls?: AgentToolCall[];
   timestamp: string;
 }
 

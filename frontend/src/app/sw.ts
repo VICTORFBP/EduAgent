@@ -1,11 +1,6 @@
-import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { NetworkFirst, CacheFirst, Serwist } from "serwist";
 
-// This declares the value of `injectionPoint` to TypeScript.
-// `injectionPoint` is the string that will be replaced by the
-// actual precache manifest. By default, this string is set to
-// `"self.__SW_MANIFEST"`.
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
     __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
@@ -18,8 +13,64 @@ const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: defaultCache,
+  // Disable navigationPreload so we control navigation caching ourselves
+  navigationPreload: false,
+  runtimeCaching: [
+    // ── HTML pages: always fetch from network first ─────────────────────────
+    // This is the KEY fix: prevents stale cached HTML causing hydration
+    // mismatches when JS bundles are updated but old HTML is served from cache.
+    {
+      matcher: ({ request }: { request: Request }) =>
+        request.mode === "navigate",
+      handler: new NetworkFirst({
+        cacheName: "html-pages",
+        networkTimeoutSeconds: 5,
+        plugins: [],
+      }),
+    },
+    // ── Next.js static assets (JS/CSS with content hash) ───────────────────
+    // Safe to cache forever — filenames include a build hash and change on deploy
+    {
+      matcher: ({ url }: { url: URL }) =>
+        url.pathname.startsWith("/_next/static/"),
+      handler: new CacheFirst({
+        cacheName: "next-static-assets",
+        plugins: [],
+      }),
+    },
+    // ── API routes: always network, never cache ─────────────────────────────
+    {
+      matcher: ({ url }: { url: URL }) =>
+        url.pathname.startsWith("/api/"),
+      handler: new NetworkFirst({
+        cacheName: "api-responses",
+        networkTimeoutSeconds: 10,
+        plugins: [],
+      }),
+    },
+    // ── Images and other public assets ─────────────────────────────────────
+    {
+      matcher: ({ request }: { request: Request }) =>
+        request.destination === "image",
+      handler: new CacheFirst({
+        cacheName: "images",
+        plugins: [],
+      }),
+    },
+  ],
 });
 
 serwist.addEventListeners();
+
+// ── Notify all tabs when a new SW version activates ────────────────────────
+// The app listens for SW_UPDATED and reloads automatically,
+// ensuring mobile users always run the latest JS bundles.
+self.addEventListener("activate", () => {
+  (self as unknown as ServiceWorkerGlobalScope).clients
+    .matchAll({ type: "window" })
+    .then((clients) => {
+      clients.forEach((client) => {
+        (client as WindowClient).postMessage({ type: "SW_UPDATED" });
+      });
+    });
+});

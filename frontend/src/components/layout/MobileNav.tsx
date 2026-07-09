@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   BookOpen,
   ClipboardCheck,
-  MessageSquare,
+  Bot,
   Users,
   Shield,
   FolderOpen,
@@ -19,7 +19,7 @@ const MOBILE_NAV_ITEMS = [
   { label: "Inicio", href: "/dashboard", icon: LayoutDashboard },
   { label: "Planear", href: "/planeacion", icon: BookOpen },
   { label: "Evaluar", href: "/evaluacion", icon: ClipboardCheck },
-  { label: "Consulta", href: "/consulta", icon: MessageSquare },
+  { label: "Agente", href: "/consulta", icon: Bot },
   { label: "Docs", href: "/documentos", icon: FolderOpen },
   { label: "Alumnos", href: "/estudiantes", icon: Users },
 ];

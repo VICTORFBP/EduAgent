@@ -64,6 +64,21 @@ export function Header() {
     fetchUser();
   }, []);
 
+  // ── Service Worker update listener ─────────────────────────────────────────
+  // When a new SW version activates, it posts SW_UPDATED to all open tabs.
+  // We reload so the browser fetches fresh JS bundles, preventing hydration
+  // mismatches caused by stale cached code on mobile devices.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "SW_UPDATED") {
+        setTimeout(() => window.location.reload(), 300);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, []);
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
