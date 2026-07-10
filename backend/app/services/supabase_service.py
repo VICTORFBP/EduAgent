@@ -289,13 +289,30 @@ class SupabaseService:
         response = self.client.table("estudiantes").insert(data).execute()
         return response.data[0]
 
+    async def create_estudiantes_bulk(self, data: list[dict]) -> list[dict]:
+        """Bulk-insert a list of estudiantes in one Supabase request."""
+        if not self.client:
+            return data
+        response = self.client.table("estudiantes").insert(data).execute()
+        return response.data
+
+    async def update_estudiante(self, estudiante_id: str, data: dict) -> dict | None:
+        """Update an estudiante."""
+        if not self.client:
+            return None
+        response = (
+            self.client.table("estudiantes")
+            .update(data)
+            .eq("id", estudiante_id)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
     async def delete_estudiante(self, estudiante_id: str) -> bool:
         if not self.client:
             return True
         self.client.table("estudiantes").delete().eq("id", estudiante_id).execute()
         return True
-
-    # ---- Sedes ----
 
     async def get_sedes(self) -> list[dict]:
         """Get all sedes."""
