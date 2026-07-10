@@ -65,12 +65,13 @@ serwist.addEventListeners();
 // ── Notify all tabs when a new SW version activates ────────────────────────
 // The app listens for SW_UPDATED and reloads automatically,
 // ensuring mobile users always run the latest JS bundles.
-self.addEventListener("activate", () => {
-  (self as unknown as ServiceWorkerGlobalScope).clients
+const sw = self as any;
+sw.addEventListener("activate", () => {
+  sw.clients
     .matchAll({ type: "window" })
-    .then((clients) => {
+    .then((clients: any[]) => {
       clients.forEach((client) => {
-        (client as WindowClient).postMessage({ type: "SW_UPDATED" });
+        client.postMessage({ type: "SW_UPDATED" });
       });
     });
 });

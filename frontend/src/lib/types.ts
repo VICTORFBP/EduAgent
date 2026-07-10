@@ -98,6 +98,8 @@ export interface Estudiante {
   docente_id: string;
   sede_id: string | null;
   sedes?: { nombre: string } | null;
+  identificacion?: string | null;
+  fecha_nacimiento?: string | null;
   created_at: string;
   evaluaciones_count?: number;
   promedio_notas?: number;
