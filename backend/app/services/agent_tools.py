@@ -123,6 +123,61 @@ TOOLS_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "listar_evaluaciones",
+            "description": (
+                "Obtiene la lista de evaluaciones del docente, mostrando estudiante, área, "
+                "tipo, nota, estado de procesamiento y si fue calificada manualmente. "
+                "Úsala cuando el docente pregunte por sus evaluaciones, notas de estudiantes, "
+                "evaluaciones pendientes de calificar, o resúmenes de calificaciones."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limite": {
+                        "type": "integer",
+                        "description": "Cantidad máxima de evaluaciones a retornar. Por defecto 10.",
+                    },
+                    "solo_pendientes": {
+                        "type": "boolean",
+                        "description": "Si true, retorna solo las evaluaciones que no están procesadas o no tienen nota. Por defecto false.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calificar_evaluacion",
+            "description": (
+                "Califica manualmente una evaluación específica, asignando nota y retroalimentación. "
+                "Si la evaluación ya tenía una nota de IA, la preserva como referencia. "
+                "Úsala cuando el docente quiera asignar o corregir la nota de un estudiante."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "evaluacion_id": {
+                        "type": "string",
+                        "description": "ID de la evaluación a calificar.",
+                    },
+                    "nota": {
+                        "type": "number",
+                        "description": "Nota a asignar, de 0 a 10.",
+                    },
+                    "retroalimentacion": {
+                        "type": "string",
+                        "description": "Comentario de retroalimentación para el estudiante. Opcional.",
+                    },
+                },
+                "required": ["evaluacion_id", "nota"],
+            },
+        },
+    },
 ]
 
 
@@ -302,6 +357,109 @@ async def _exec_ver_estadisticas(args: dict, docente_id: str) -> str:
         return f"No pude obtener las estadísticas en este momento: {str(e)}"
 
 
+async def _exec_listar_evaluaciones(args: dict, docente_id: str) -> str:
+    from app.services.supabase_service import supabase_service
+
+    limite = args.get("limite", 10)
+    solo_pendientes = args.get("solo_pendientes", False)
+
+    try:
+        evaluaciones = await supabase_service.get_evaluaciones(docente_id)
+        if not evaluaciones:
+            return "No tienes evaluaciones guardadas aún. Puedes subir una en la sección **Evaluación**."
+
+        if solo_pendientes:
+            evaluaciones = [
+                e for e in evaluaciones
+                if not e.get("procesado_correctamente") or e.get("nota") is None
+            ]
+            if not evaluaciones:
+                return "🎉 ¡Todas tus evaluaciones están calificadas! No hay pendientes."
+
+        evaluaciones = evaluaciones[:limite]
+        lines = [f"📋 **{len(evaluaciones)} evaluación(es){'pendiente(s)' if solo_pendientes else ''}:**\n"]
+        for i, e in enumerate(evaluaciones, 1):
+            nombre = e.get("estudiante_nombre") or "Sin identificar"
+            nota = e.get("nota")
+            nota_str = f"**{float(nota):.1f}**/10" if nota is not None else "⏳ Sin nota"
+            estado = ""
+            if e.get("calificacion_manual"):
+                estado = " 📝 Manual"
+            elif e.get("procesado_correctamente"):
+                estado = " 🤖 IA"
+            elif e.get("error_ocr"):
+                estado = " ⚠️ Error"
+            else:
+                estado = " ⏳ Procesando"
+
+            lines.append(
+                f"{i}. {nombre} — {e.get('area', '')} ({e.get('tipo', '')}) · "
+                f"Nota: {nota_str}{estado} · ID: `{e['id'][:8]}…`"
+            )
+
+        lines.append("\nPara calificar manualmente, dime: *'Ponle un 8 a [nombre]'* o usa la sección **Evaluación**.")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error(f"listar_evaluaciones error: {e}")
+        return f"No pude obtener las evaluaciones en este momento: {str(e)}"
+
+
+async def _exec_calificar_evaluacion(args: dict, docente_id: str) -> str:
+    from app.services.supabase_service import supabase_service
+
+    evaluacion_id = args.get("evaluacion_id", "")
+    nota = args.get("nota")
+    retroalimentacion = args.get("retroalimentacion")
+
+    if nota is None:
+        return "Necesito que me indiques la nota a asignar (de 0 a 10)."
+    if nota < 0 or nota > 10:
+        return "La nota debe estar entre 0 y 10."
+
+    try:
+        # Find evaluacion — try exact match first, then prefix match
+        eval_data = await supabase_service.get_evaluacion(evaluacion_id)
+        if not eval_data:
+            # Try prefix match from recent evaluaciones
+            evaluaciones = await supabase_service.get_evaluaciones(docente_id)
+            matches = [e for e in evaluaciones if e["id"].startswith(evaluacion_id)]
+            if len(matches) == 1:
+                eval_data = matches[0]
+                evaluacion_id = eval_data["id"]
+            elif len(matches) > 1:
+                return f"Encontré {len(matches)} evaluaciones con ese ID parcial. Por favor, sé más específico."
+            else:
+                return "No encontré esa evaluación. Usa `listar_evaluaciones` para ver los IDs disponibles."
+
+        if eval_data["docente_id"] != docente_id:
+            return "No tienes acceso a esa evaluación."
+
+        update_dict = {
+            "nota": nota,
+            "calificacion_manual": True,
+            "procesado_correctamente": True,
+            "error_ocr": None,
+        }
+        if retroalimentacion:
+            update_dict["retroalimentacion"] = retroalimentacion
+        # Preserve IA grade
+        if eval_data.get("nota") is not None and not eval_data.get("calificacion_manual"):
+            update_dict["nota_ia"] = eval_data.get("nota")
+
+        await supabase_service.update_evaluacion(evaluacion_id, update_dict)
+
+        nombre = eval_data.get("estudiante_nombre") or "Estudiante"
+        msg = f"✅ **Calificación guardada** — **{nombre}**: **{nota:.1f}**/10"
+        if eval_data.get("nota") is not None and not eval_data.get("calificacion_manual"):
+            msg += f" (IA había dado {float(eval_data['nota']):.1f})"
+        if retroalimentacion:
+            msg += f"\n💬 Retroalimentación: {retroalimentacion}"
+        return msg
+    except Exception as e:
+        logger.error(f"calificar_evaluacion error: {e}")
+        return f"No pude calificar la evaluación: {str(e)}"
+
+
 # ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 async def execute_tool(
@@ -317,6 +475,8 @@ async def execute_tool(
         "listar_planeaciones": lambda a: _exec_listar_planeaciones(a, docente_id),
         "listar_estudiantes": lambda a: _exec_listar_estudiantes(a, docente_id),
         "ver_estadisticas": lambda a: _exec_ver_estadisticas(a, docente_id),
+        "listar_evaluaciones": lambda a: _exec_listar_evaluaciones(a, docente_id),
+        "calificar_evaluacion": lambda a: _exec_calificar_evaluacion(a, docente_id),
     }
     executor = dispatch.get(name)
     if not executor:

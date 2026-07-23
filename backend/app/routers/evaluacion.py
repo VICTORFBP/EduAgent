@@ -54,6 +54,7 @@ async def create_evaluacion(
     archivo: UploadFile = File(...),
     planeacion_id: str | None = Form(None),
     grado: int | None = Form(None),
+    solo_manual: bool = Form(False),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -139,25 +140,29 @@ async def create_evaluacion(
                     "actividad_generada": plan.get("actividad_generada"),
                 }
 
-        # Fire-and-forget n8n call (Gemini Vision)
-        bucket, rel_path = storage_path.split("/", 1)
-        background_tasks.add_task(
-            _trigger_evaluacion_background,
-            db_record["id"],
-            estudiante_id,
-            current_user["id"],
-            area,
-            tipo,
-            bucket,
-            rel_path,
-            contexto_evaluacion,
-        )
+        # Fire-and-forget n8n call (Gemini Vision) unless solo_manual is True
+        if not solo_manual:
+            bucket, rel_path = storage_path.split("/", 1)
+            background_tasks.add_task(
+                _trigger_evaluacion_background,
+                db_record["id"],
+                estudiante_id,
+                current_user["id"],
+                area,
+                tipo,
+                bucket,
+                rel_path,
+                contexto_evaluacion,
+            )
+            message = "Evaluación creada. Gemini Vision está analizando el archivo..."
+        else:
+            message = "Evaluación creada. Lista para calificación manual."
 
         exitoso = True
         return {
             "id": db_record["id"],
-            "status": "processing",
-            "message": "Evaluación creada. Gemini Vision está analizando el archivo...",
+            "status": "processing" if not solo_manual else "manual",
+            "message": message,
             "data": db_record,
         }
     except HTTPException:
@@ -410,4 +415,59 @@ async def update_evaluacion_partial(
     if not updated:
         raise HTTPException(status_code=500, detail="No se pudo actualizar la evaluación")
         
+    return updated
+
+class EvaluacionCalificarRequest(BaseModel):
+    nota: float
+    retroalimentacion: str | None = None
+
+@router.patch("/{evaluacion_id}/calificar")
+async def calificar_manual(
+    evaluacion_id: str,
+    data: EvaluacionCalificarRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Calificar manualmente una evaluación, haciendo override de IA si existía."""
+    eval_data = await supabase_service.get_evaluacion(evaluacion_id)
+    if not eval_data:
+        raise HTTPException(status_code=404, detail="Evaluación no encontrada")
+    if eval_data["docente_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación")
+    
+    update_dict = {
+        "nota": data.nota,
+        "retroalimentacion": data.retroalimentacion,
+        "calificacion_manual": True,
+        "procesado_correctamente": True,
+        "error_ocr": None
+    }
+    
+    # Preserve IA grade if not already preserved
+    if eval_data.get("nota") is not None and not eval_data.get("calificacion_manual"):
+        update_dict["nota_ia"] = eval_data.get("nota")
+        
+    updated = await supabase_service.update_evaluacion(evaluacion_id, update_dict)
+    
+    if not updated:
+        raise HTTPException(status_code=500, detail="No se pudo guardar la calificación")
+        
+    return updated
+
+@router.post("/{evaluacion_id}/skip-ia")
+async def skip_ia(
+    evaluacion_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Marcar una evaluación como 'solo manual' para que no dependa de IA."""
+    eval_data = await supabase_service.get_evaluacion(evaluacion_id)
+    if not eval_data:
+        raise HTTPException(status_code=404, detail="Evaluación no encontrada")
+    if eval_data["docente_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación")
+        
+    updated = await supabase_service.update_evaluacion(evaluacion_id, {
+        "procesado_correctamente": False, # Sigue pendiente de calificar
+        "error_ocr": None
+    })
+    
     return updated

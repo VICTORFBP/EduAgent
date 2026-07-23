@@ -98,7 +98,7 @@ class SupabaseService:
             return []
         response = (
             self.client.table("evaluaciones")
-            .select("id, estudiante_id, estudiante_nombre, docente_id, area, tipo, archivo_path, nota, retroalimentacion, procesado_correctamente, error_ocr, created_at, planeacion_id")
+            .select("id, estudiante_id, estudiante_nombre, docente_id, area, tipo, archivo_path, nota, retroalimentacion, procesado_correctamente, error_ocr, created_at, planeacion_id, calificacion_manual, nota_ia")
             .eq("docente_id", docente_id)
             .order("created_at", desc=True)
             .execute()

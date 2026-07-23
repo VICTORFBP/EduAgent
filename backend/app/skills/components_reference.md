@@ -14,6 +14,14 @@ incluso si están debajo de un ítem de lista enumerada.
 
 ---
 
+## FILOSOFÍA DE USO
+
+Estos componentes son **herramientas**, no una checklist. NO tienes que usar todos en cada actividad.
+Elige los que mejor se adapten al tema, grado y tipo de ejercicio. La creatividad pedagógica
+y la variedad son más importantes que la cantidad de componentes usados.
+
+---
+
 ## Notación matemática (LaTeX)
 
 Usa SOLO estos delimitadores:
@@ -38,7 +46,6 @@ Cada pregunta que requiera que el estudiante escriba DEBE ir seguida de un compo
 **Ejemplos de uso (¡Aprende de esto!):**
 - ❌ INCORRECTO (Usar guiones bajos):
   `¿Qué es la fotosíntesis?`
-  `______________________`
   `______________________`
 
 - ✅ CORRECTO (Usar el componente):
@@ -79,7 +86,7 @@ NUNCA escribas "Afirmación V F" como texto plano. SIEMPRE usa la tabla Markdown
 Usa tablas Markdown estándar con la sintaxis `<SALTO>` para separar filas. El sistema las renderiza con cabecera coloreada automáticamente.
 
 ```
-| Número | Potencia | Resultado |<SALTO>|--------|----------|-----------|<SALTO>| 9      | $3^2$    |           |<SALTO>| 16     | $4^2$    |           |
+| Número | Potencia | Resultado |<SALTO>|--------|----------|-----------<SALTO>| 9      | $3^2$    |           |<SALTO>| 16     | $4^2$    |           |
 ```
 
 ---
@@ -117,7 +124,7 @@ Siempre que sea pedagógicamente útil, incluye un fragmento de lectura contextu
 
 ## Grilla de ejercicios (3 columnas)
 
-Para listas de ejercicios cortos en paralelo (ideal para operaciones matemáticas o emparejamiento rápido). NUNCA generes listas largas con guiones bajos (`___`) sueltas; agrupalas en una grilla para ahorrar espacio.
+Para listas de ejercicios cortos en paralelo (ideal para operaciones matemáticas o emparejamiento rápido). NUNCA generes listas largas con guiones bajos (`___`) sueltas; agrúpalas en una grilla para ahorrar espacio.
 
 > ⚠️ **CRÍTICO**: Dentro de un bloque GRILLA cada ítem va en su propia línea con `> `. NUNCA uses `<SALTO>` dentro de la GRILLA — `<SALTO>` es EXCLUSIVAMENTE para filas de tablas Markdown `|...|`.
 
@@ -134,12 +141,120 @@ Para listas de ejercicios cortos en paralelo (ideal para operaciones matemática
 
 ---
 
+## Ejercicio de relacionar / emparejar columnas
+
+Ideal para actividades de asociación (concepto-definición, operación-resultado, causa-efecto).
+Presenta dos columnas que el estudiante debe conectar con flechas.
+
+```
+> 📋 RELACION
+> Concepto ↔ Definición
+> Fotosíntesis | Proceso por el cual las plantas producen su alimento
+> Respiración | Intercambio de gases con el medio
+> Reproducción | Capacidad de generar nuevos organismos
+> Nutrición | Obtención de alimentos y nutrientes
+```
+
+Cada ítem va en su propia línea con `> `. La primera línea después de `RELACION` es el título de las columnas (separadas por `↔`). Las siguientes líneas tienen el par separado por `|`.
+
+---
+
+## Texto con espacios para completar (Cloze / Llenar huecos)
+
+Ideal para evaluar vocabulario, gramática, o conceptos clave.
+El estudiante llena las palabras faltantes en contexto.
+
+```
+> 🧩 COMPLETAR
+> La ___ es el proceso por el cual las plantas transforman la energía del ___ en alimento.
+> Para esto necesitan agua, ___ y luz solar. El producto principal es la ___ y el oxígeno.
+```
+
+Usa `___` (triple guión bajo) para marcar cada espacio que el estudiante debe completar. El sistema los renderiza como líneas punteadas dentro del texto.
+
+---
+
+## Ejercicio de ordenar secuencia
+
+Para actividades donde el estudiante debe poner elementos en el orden correcto (pasos de un proceso, eventos históricos, instrucciones).
+
+```
+> 📝 ORDENAR
+> Ordena los pasos del método científico:
+> Formular una hipótesis
+> Observar un fenómeno
+> Realizar el experimento
+> Analizar los resultados
+> Plantear conclusiones
+```
+
+Se renderiza como una lista con recuadros vacíos numerables donde el estudiante escribe el orden.
+
+---
+
+## Texto para corregir errores
+
+Para actividades de ortografía, gramática, o corrección conceptual.
+El estudiante identifica y corrige los errores en el texto.
+
+```
+> ✏️ CORREGIR
+> "Las plantas nesesitan luz del sol, hagua y dioxido de carbon para realisar la fotocintesis.
+> Este proseso ocurre en las ojas y produce oxijeno."
+```
+
+Se renderiza con un borde especial que indica que es un texto para revisión.
+
+---
+
+## Escala de valoración / apreciación
+
+Para autoevaluación, valoración de actitudes, o escalas tipo Likert.
+
+```
+> 🔢 ESCALA
+> Mucho | Algo | Poco | Nada
+> Entiendo el concepto de fracción
+> Puedo resolver problemas con fracciones
+> Me siento seguro al explicar fracciones a un compañero
+```
+
+La primera línea contiene las opciones de la escala separadas por `|`. Las siguientes líneas son los ítems a evaluar.
+
+---
+
 ## Encabezados de sección (niveles)
 
 - `## Sección principal` → Encabezado grande con línea
 - `### Subsección` → Encabezado secundario con línea fina
 
 No uses `#` nivel 1, está reservado para el título del documento.
+
+---
+
+## PATRONES DE COMPOSICIÓN (ejemplos de combinaciones creativas)
+
+No existe una única forma de armar una actividad. Aquí hay algunos patrones que puedes combinar y adaptar:
+
+**Patrón A — Lectura con comprensión mixta:**
+Fragmento → preguntas abiertas → verdadero/falso → producción escrita
+
+**Patrón B — Práctica progresiva:**
+Recuadro conceptual → grilla de ejercicios → problemas contextualizados → reflexión
+
+**Patrón C — Evaluación diagnóstica:**
+Selección múltiple → completar → relacionar → autoevaluación con escala
+
+**Patrón D — Taller de corrección:**
+Texto con errores → identificar y corregir → reescribir correctamente
+
+**Patrón E — Exploración científica:**
+Situación problema → predicción → espacio de dibujo → análisis → conclusiones
+
+**Patrón F — Análisis de caso:**
+Fragmento de lectura → preguntas inferenciales → tabla comparativa → opinión argumentada
+
+Puedes inventar tus propios patrones. Lo importante es que la actividad tenga coherencia pedagógica y variedad.
 
 ---
 

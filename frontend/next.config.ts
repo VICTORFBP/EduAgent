@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     return [
       {
         // HTML pages: never cache — prevents stale HTML/JS hydration mismatches
-        source: "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)",
+        source: "/((?!_next/static|_next/image|favicon.ico).*)",
         headers: [
           {
             key: "Cache-Control",

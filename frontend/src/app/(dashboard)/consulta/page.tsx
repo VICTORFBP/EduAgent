@@ -25,12 +25,15 @@ const TOOL_LABELS: Record<string, { label: string; icon: React.ElementType; colo
   listar_planeaciones:  { label: "Buscando planeaciones",             icon: FileText, color: "text-amber-400" },
   listar_estudiantes:   { label: "Consultando estudiantes",           icon: Users, color: "text-purple-400" },
   ver_estadisticas:     { label: "Obteniendo estadísticas",           icon: BarChart3, color: "text-pink-400" },
+  listar_evaluaciones:  { label: "Consultando evaluaciones",          icon: ClipboardList, color: "text-cyan-400" },
+  calificar_evaluacion: { label: "Calificando evaluación",            icon: CheckCircle2, color: "text-emerald-400" },
 };
 
 const SUGGESTIONS = [
   "¿Qué es la escuela nueva y cómo aplica en el aula?",
   "Genera una planeación de Matemáticas para grado 3 sobre fracciones",
   "Muéstrame mis planeaciones recientes",
+  "¿Cómo van las evaluaciones de mis estudiantes?",
   "¿Cuántos estudiantes tengo registrados?",
 ];
 

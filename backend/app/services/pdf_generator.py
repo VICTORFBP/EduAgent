@@ -92,8 +92,18 @@ def _coerce_str(value: Any) -> str:
     if isinstance(value, list):
         return "\n\n".join(_coerce_str(i) for i in value if i)
     if isinstance(value, dict):
-        import json
-        return json.dumps(value, indent=2, ensure_ascii=False)
+        if not value:
+            return ""
+        lines = ["### Clave de Respuestas\n"]
+        for k, v in value.items():
+            key_label = f"Pregunta {k}" if str(k).isdigit() else str(k)
+            if isinstance(v, dict):
+                lines.append(f"- **{key_label}:**")
+                for sub_k, sub_v in v.items():
+                    lines.append(f"  - {sub_k}: **{sub_v}**")
+            else:
+                lines.append(f"- **{key_label}:** {v}")
+        return "\n".join(lines)
     return str(value)
 
 
@@ -447,6 +457,90 @@ class TypstRenderer(mistune.BaseRenderer):
                 items_typst = ',\n  '.join(f'[{_escape_plain_text(i)}]' for i in items)
                 return f'#grilla(cols: 3, (\n  {items_typst},\n))\n\n'
 
+
+
+        if 'RELACION' in first_upper or '\U0001f4cb' in first:
+            titulo_rel = re.sub(
+                r'(?i)^[\U0001f4cb\s]*RELACION\s*[:\-]?\s*', '', first
+            ).strip()
+            # First line of rest = column titles separated by ↔
+            col_titles = ['Columna A', 'Columna B']
+            data_lines = rest_lines
+            if rest_lines and '↔' in rest_lines[0]:
+                parts = rest_lines[0].split('↔')
+                col_titles = [p.strip() for p in parts[:2]]
+                data_lines = rest_lines[1:]
+            pares = []
+            for ln in data_lines:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                if '|' in ln:
+                    pair_parts = ln.split('|', 1)
+                    pares.append((
+                        f'[{_escape_plain_text(pair_parts[0].strip())}]',
+                        f'[{_escape_plain_text(pair_parts[1].strip())}]'
+                    ))
+                else:
+                    pares.append((f'[{_escape_plain_text(ln)}]', '[]'))
+            pares_typst = ',\n  '.join(f'({p[0]}, {p[1]})' for p in pares)
+            return (
+                f'#relacion('
+                f'titulo-izq: [{col_titles[0]}], '
+                f'titulo-der: [{col_titles[1]}], '
+                f'(\n  {pares_typst},\n))\n\n'
+            )
+
+        if 'COMPLETAR' in first_upper or '\U0001f9e9' in first:
+            body_first = re.sub(
+                r'(?i)^[\U0001f9e9\s]*COMPLETAR\s*[:\-]?\s*', '', first
+            ).strip()
+            inner = "\n".join(p for p in [body_first, rest_text] if p)
+            return f'#completar-texto[\n{inner}\n]\n\n'
+
+        if 'ORDENAR' in first_upper or '\U0001f4dd' in first:
+            instruccion = re.sub(
+                r'(?i)^[\U0001f4dd\s]*ORDENAR\s*[:\-]?\s*', '', first
+            ).strip()
+            data_lines_ord = rest_lines
+            if instruccion:
+                # instruccion is the title, rest are items
+                pass
+            elif rest_lines:
+                instruccion = rest_lines[0].strip()
+                data_lines_ord = rest_lines[1:]
+            items_ord = [l.strip() for l in data_lines_ord if l.strip()]
+            if items_ord:
+                items_typst = ',\n  '.join(f'[{_escape_plain_text(i)}]' for i in items_ord)
+                instr_esc = instruccion or 'Ordena los siguientes elementos:'
+                return (
+                    f'#ordenar(instruccion: [{instr_esc}], '
+                    f'(\n  {items_typst},\n))\n\n'
+                )
+
+        if 'CORREGIR' in first_upper or ('✏' in first and 'CORREGIR' in first_upper):
+            body_first = re.sub(
+                r'(?i)^[✏️\s]*CORREGIR\s*[:\-]?\s*', '', first
+            ).strip()
+            inner = "\n".join(p for p in [body_first, rest_text] if p)
+            return f'#corregir-texto[\n{inner}\n]\n\n'
+
+        if 'ESCALA' in first_upper or '\U0001f522' in first:
+            # First rest line = scale options separated by |
+            opciones = ['Sí', 'No']
+            data_lines_esc = rest_lines
+            if rest_lines and '|' in rest_lines[0]:
+                opciones = [o.strip() for o in rest_lines[0].split('|') if o.strip()]
+                data_lines_esc = rest_lines[1:]
+            items_esc = [l.strip() for l in data_lines_esc if l.strip()]
+            if items_esc:
+                ops_typst = ', '.join(f'[{_escape_plain_text(o)}]' for o in opciones)
+                items_typst = ',\n  '.join(f'[{_escape_plain_text(i)}]' for i in items_esc)
+                return (
+                    f'#escala(\n  ({ops_typst},),\n'
+                    f'  ({items_typst},),\n)\n\n'
+                )
+
         if 'RECUADRO' in first_upper or '\U0001f4e6' in first or '\U0001f4cc' in first:
             titulo_bq = re.sub(
                 r'(?i)^[\U0001f4e6\U0001f4cc\s]*(RECUADRO)\s*[:\-]?\s*', '', first
@@ -711,7 +805,8 @@ class PdfGeneratorService:
             f'#import "@preview/mitex:0.2.4": *\n'
             f'#import "{self._TEMPLATE_IMPORT}": conf, recuadro, fragmento-lectura, '
             f'lineas-respuesta, grilla, opcion, seccion-clave, bloque-instrucciones, '
-            f'dibujo, tabla-formato, caja-respuesta, verdadero-falso\n\n'
+            f'dibujo, tabla-formato, caja-respuesta, verdadero-falso, '
+            f'relacion, completar-texto, ordenar, corregir-texto, escala\n\n'
             f'#show: doc => conf(\n'
             f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
             f'  area: "{_escape_str_arg(area_key)}",\n'

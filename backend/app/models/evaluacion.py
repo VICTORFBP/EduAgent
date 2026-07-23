@@ -24,4 +24,6 @@ class EvaluacionResponse(BaseModel):
     error_ocr: Optional[str] = None
     planeacion_id: Optional[str] = None
     grado: Optional[int] = None
+    calificacion_manual: bool = False
+    nota_ia: Optional[float] = None
     created_at: str

@@ -54,10 +54,36 @@ function getNotaColor(nota: number | null): string {
 
 export default function EvaluacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion, updateEvaluacionPartial } = useEvaluaciones();
+  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion, calificarManual } = useEvaluaciones();
   const { estudiantes } = useEstudiantes();
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [selectedEvaluacion, setSelectedEvaluacion] = useState<Evaluacion | null>(null);
+
+  // Manual grading state
+  const [isManualGrading, setIsManualGrading] = useState(false);
+  const [manualNota, setManualNota] = useState("");
+  const [manualFeedback, setManualFeedback] = useState("");
+
+  const handleManualGrade = async () => {
+    if (!selectedEvaluacion || !manualNota) return;
+    try {
+      setIsActionLoading("manual-" + selectedEvaluacion.id);
+      const updated = await calificarManual(selectedEvaluacion.id, Number(manualNota), manualFeedback);
+      setSelectedEvaluacion(updated);
+      setIsManualGrading(false);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsActionLoading(null);
+    }
+  };
+
+  const handleOpenModal = (ev: Evaluacion) => {
+    setSelectedEvaluacion(ev);
+    setIsManualGrading(false);
+    setManualNota(ev.nota !== null ? String(ev.nota) : "");
+    setManualFeedback(ev.retroalimentacion || "");
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar esta evaluación?")) return;
@@ -133,7 +159,7 @@ export default function EvaluacionPage() {
                 key={ev.id}
                 className="group glass-card border-white/5 hover:border-white/10 transition-all animate-slide-up cursor-pointer"
                 style={{ animationDelay: `${(i + 1) * 80}ms` }}
-                onClick={() => setSelectedEvaluacion(ev as Evaluacion)}
+                onClick={() => handleOpenModal(ev as Evaluacion)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -161,6 +187,9 @@ export default function EvaluacionPage() {
                           <Badge variant="outline" className="border-white/10 text-[10px]">
                             {ev.tipo}
                           </Badge>
+                          {ev.calificacion_manual && (
+                            <Badge className="bg-blue-500/10 text-blue-400 border-0 text-[10px]">Manual</Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">{formatDate(ev.created_at)}</span>
                         </div>
                       </div>
@@ -260,10 +289,19 @@ export default function EvaluacionPage() {
                   </div>
                   Evaluación de {selectedEvaluacion.estudiante_nombre || "Estudiante"}
                 </DialogTitle>
-                <DialogDescription>
-                  Revisión detallada procesada por IA.
+                <DialogDescription className="flex items-center gap-2">
+                  <span>
+                    {selectedEvaluacion.calificacion_manual
+                      ? "Calificación asignada manualmente por el docente."
+                      : "Revisión detallada procesada por IA."}
+                  </span>
                   {!selectedEvaluacion.estudiante_id && selectedEvaluacion.procesado_correctamente && (
                     <span className="text-amber-500 font-medium ml-2">⚠️ Estudiante sin identificar.</span>
+                  )}
+                  {selectedEvaluacion.calificacion_manual && selectedEvaluacion.nota_ia !== null && (
+                    <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
+                      IA Corregida (Nota original: {selectedEvaluacion.nota_ia})
+                    </Badge>
                   )}
                 </DialogDescription>
               </DialogHeader>
@@ -312,7 +350,7 @@ export default function EvaluacionPage() {
                   </div>
                 )}
 
-                {selectedEvaluacion.error_ocr && (
+                {selectedEvaluacion.error_ocr && !isManualGrading && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold text-red-400 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
@@ -321,6 +359,58 @@ export default function EvaluacionPage() {
                     <div className="bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-sm text-red-200 whitespace-pre-wrap">
                       {selectedEvaluacion.error_ocr}
                     </div>
+                  </div>
+                )}
+                
+                {isManualGrading ? (
+                  <div className="space-y-4 pt-4 border-t border-white/10 animate-fade-in">
+                    <h4 className="text-sm font-semibold">Calificación Manual</h4>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Nota (0 - 10)</label>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="10" 
+                        step="0.1" 
+                        value={manualNota} 
+                        onChange={(e) => setManualNota(e.target.value)} 
+                        className="bg-white/5 border-white/10 max-w-[150px]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Retroalimentación</label>
+                      <textarea
+                        value={manualFeedback}
+                        onChange={(e) => setManualFeedback(e.target.value)}
+                        className="w-full h-24 bg-white/5 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        placeholder="Escribe comentarios para el estudiante..."
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => setIsManualGrading(false)}>Cancelar</Button>
+                      <Button 
+                        onClick={handleManualGrade} 
+                        disabled={!manualNota || isActionLoading === "manual-" + selectedEvaluacion.id}
+                        className="bg-primary hover:bg-primary/90 text-white"
+                      >
+                        {isActionLoading === "manual-" + selectedEvaluacion.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <ClipboardCheck className="w-4 h-4 mr-2" />
+                        )}
+                        Guardar Calificación
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-2 flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      className="border-white/10"
+                      onClick={() => setIsManualGrading(true)}
+                    >
+                      {selectedEvaluacion.nota !== null ? "Corregir Calificación" : "Calificar Manualmente"}
+                    </Button>
                   </div>
                 )}
               </div>

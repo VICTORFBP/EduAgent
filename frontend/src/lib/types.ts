@@ -74,6 +74,8 @@ export interface Evaluacion {
   retroalimentacion: string | null;
   procesado_correctamente: boolean;
   error_ocr: string | null;
+  calificacion_manual: boolean;
+  nota_ia: number | null;
   created_at: string;
 }
 
