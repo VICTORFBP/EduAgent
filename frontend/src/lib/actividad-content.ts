@@ -2,6 +2,27 @@
 
 import DOMPurify from "isomorphic-dompurify";
 
+/** Format Q&A dictionary objects into readable Markdown bullet lists. */
+export function formatClaveObjectToMarkdown(obj: Record<string, unknown>): string {
+  if (!obj || Object.keys(obj).length === 0) return "";
+
+  const lines: string[] = ["### Clave de Respuestas\n"];
+
+  for (const [key, val] of Object.entries(obj)) {
+    const keyLabel = !isNaN(Number(key)) ? `Pregunta ${key}` : key;
+    if (val != null && typeof val === "object" && !Array.isArray(val)) {
+      lines.push(`- **${keyLabel}:**`);
+      for (const [subKey, subVal] of Object.entries(val as Record<string, unknown>)) {
+        lines.push(`  - ${subKey}: **${String(subVal ?? "")}**`);
+      }
+    } else {
+      lines.push(`- **${keyLabel}:** ${String(val ?? "")}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 /** Coerce API/AI fields (string, object, array) into text. */
 export function coerceActividadMarkdown(value: unknown): string {
   if (value == null) return "";
@@ -13,7 +34,7 @@ export function coerceActividadMarkdown(value: unknown): string {
     return parts.join("\n\n");
   }
   if (typeof value === "object") {
-    return "### Respuestas (Formato Crudo)\n```json\n" + JSON.stringify(value, null, 2) + "\n```";
+    return formatClaveObjectToMarkdown(value as Record<string, unknown>);
   }
   return String(value);
 }

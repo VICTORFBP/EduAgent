@@ -98,7 +98,7 @@ class SupabaseService:
             return []
         response = (
             self.client.table("evaluaciones")
-            .select("id, estudiante_id, estudiante_nombre, docente_id, area, tipo, archivo_path, nota, retroalimentacion, procesado_correctamente, error_ocr, created_at, planeacion_id")
+            .select("id, estudiante_id, estudiante_nombre, docente_id, area, tipo, archivo_path, nota, retroalimentacion, procesado_correctamente, error_ocr, created_at, planeacion_id, calificacion_manual, nota_ia")
             .eq("docente_id", docente_id)
             .order("created_at", desc=True)
             .execute()
@@ -255,6 +255,54 @@ class SupabaseService:
         self.client.table("documentos").delete().eq("id", documento_id).execute()
         return True
 
+    async def get_documentos_text_content(
+        self, docente_id: str, documento_ids: list[str]
+    ) -> list[str]:
+        """Return the extracted text content for the given documento IDs owned by this docente.
+
+        Only returns text for DOCENTE_CUSTOM docs that the docente owns
+        and that have valid contenido_texto stored.
+        """
+        if not self.client or not documento_ids:
+            return []
+        try:
+            response = (
+                self.client.table("documentos")
+                .select("contenido_texto")
+                .eq("docente_id", docente_id)
+                .eq("tipo", "DOCENTE_CUSTOM")
+                .in_("id", documento_ids)
+                .not_.is_("contenido_texto", "null")
+                .execute()
+            )
+            return [
+                row["contenido_texto"]
+                for row in (response.data or [])
+                if row.get("contenido_texto")
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching contenido_texto for docente {docente_id}: {e}")
+            return []
+
+    async def get_documentos_referencia(self, docente_id: str) -> list[dict]:
+        """Return DOCENTE_CUSTOM docs with valid contenido_texto (ready for use as reference)."""
+        if not self.client:
+            return []
+        try:
+            response = (
+                self.client.table("documentos")
+                .select("id, nombre, area, grado, contenido_texto, created_at")
+                .eq("docente_id", docente_id)
+                .eq("tipo", "DOCENTE_CUSTOM")
+                .not_.is_("contenido_texto", "null")
+                .order("created_at", desc=True)
+                .execute()
+            )
+            return response.data or []
+        except Exception as e:
+            logger.error(f"Error fetching documentos referencia for docente {docente_id}: {e}")
+            return []
+
     # ---- Estudiantes ----
 
     async def get_estudiantes(self, docente_id: str) -> list[dict]:
@@ -289,13 +337,30 @@ class SupabaseService:
         response = self.client.table("estudiantes").insert(data).execute()
         return response.data[0]
 
+    async def create_estudiantes_bulk(self, data: list[dict]) -> list[dict]:
+        """Bulk-insert a list of estudiantes in one Supabase request."""
+        if not self.client:
+            return data
+        response = self.client.table("estudiantes").insert(data).execute()
+        return response.data
+
+    async def update_estudiante(self, estudiante_id: str, data: dict) -> dict | None:
+        """Update an estudiante."""
+        if not self.client:
+            return None
+        response = (
+            self.client.table("estudiantes")
+            .update(data)
+            .eq("id", estudiante_id)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
     async def delete_estudiante(self, estudiante_id: str) -> bool:
         if not self.client:
             return True
         self.client.table("estudiantes").delete().eq("id", estudiante_id).execute()
         return True
-
-    # ---- Sedes ----
 
     async def get_sedes(self) -> list[dict]:
         """Get all sedes."""

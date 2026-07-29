@@ -96,12 +96,20 @@ async def evaluacion_completada(
     update_data: dict = {
         "procesado_correctamente": body.procesado_correctamente,
     }
-    if body.nota is not None:
-        update_data["nota"] = body.nota
-    if body.retroalimentacion is not None:
-        update_data["retroalimentacion"] = body.retroalimentacion
-    if body.error_ocr is not None:
-        update_data["error_ocr"] = body.error_ocr
+    
+    eval_data = await supabase_service.get_evaluacion(body.evaluacion_id)
+    if eval_data and eval_data.get("calificacion_manual"):
+        # If already manually graded, only save the AI's grade in nota_ia for reference
+        if body.nota is not None:
+            update_data["nota_ia"] = body.nota
+    else:
+        if body.nota is not None:
+            update_data["nota"] = body.nota
+            update_data["nota_ia"] = body.nota
+        if body.retroalimentacion is not None:
+            update_data["retroalimentacion"] = body.retroalimentacion
+        if body.error_ocr is not None:
+            update_data["error_ocr"] = body.error_ocr
 
     result = await supabase_service.update_evaluacion(body.evaluacion_id, update_data)
     if result is None:

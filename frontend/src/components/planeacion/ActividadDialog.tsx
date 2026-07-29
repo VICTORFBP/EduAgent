@@ -25,6 +25,7 @@ import {
 } from "@/components/planeacion/ActividadDocument";
 import { ActividadMarkdown } from "@/components/planeacion/ActividadMarkdown";
 import {
+  coerceActividadMarkdown,
   getGradeContent,
   getSkillLabelForArea,
   isPlainMarkdownString,
@@ -133,24 +134,33 @@ export function ActividadDialog({
 
   const claveRaw = actividad?.clave_respuestas;
 
-  // needsRegenerate = true only when clave_respuestas is a non-string, non-grade-keyed object
-  // (i.e. a truly unknown/old format). Per-grade objects like {2: "...", 3: "..."} are valid.
+  // A per-grade object has entries where values are full Markdown text for each grade (e.g. { "5": "## Solucionario Grado 5..." }).
+  // If the object maps question numbers ("1", "2", "3", ...) to short answers or sub-objects, it is a Q&A map.
   const isPerGradeObject =
     claveRaw != null &&
     typeof claveRaw === "object" &&
     !Array.isArray(claveRaw) &&
-    Object.values(claveRaw as object).every((v) => typeof v === "string");
+    Object.entries(claveRaw as object).every(([_, v]) => typeof v === "string" && (v.length > 50 || v.includes("\n")));
+
+  const isQandAMap =
+    claveRaw != null &&
+    typeof claveRaw === "object" &&
+    !Array.isArray(claveRaw) &&
+    !isPerGradeObject;
 
   const needsRegenerate =
     claveRaw != null &&
     claveRaw !== "" &&
     !isPlainMarkdownString(claveRaw) &&
     !isPerGradeObject &&
+    !isQandAMap &&
     !isPruebaEstandarizada;
 
   let displayClave: unknown = claveRaw;
-  if (claveRaw && typeof claveRaw === "object" && displayGrade != null && !isPruebaEstandarizada) {
+  if (isPerGradeObject && displayGrade != null && !isPruebaEstandarizada) {
     displayClave = getGradeContent(claveRaw as Record<string, string>, displayGrade) ?? claveRaw;
+  } else if (isQandAMap) {
+    displayClave = coerceActividadMarkdown(claveRaw);
   }
 
   return (

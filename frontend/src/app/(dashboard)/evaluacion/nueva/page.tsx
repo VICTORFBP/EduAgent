@@ -76,6 +76,7 @@ export default function NuevaEvaluacionPage() {
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   
   const [preview, setPreview] = useState<string | null>(null);
+  const [soloManual, setSoloManual] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<{
     id?: string;
@@ -171,6 +172,7 @@ export default function NuevaEvaluacionPage() {
           formDataLote.append("estudiante_nombre", student ? student.nombre : "Estudiante Desconocido");
           formDataLote.append("tipo", tipo);
           formDataLote.append("archivo", f);
+          formDataLote.append("solo_manual", soloManual ? "true" : "false");
           
           try {
             const res = await processEvaluacion(formDataLote);
@@ -207,6 +209,7 @@ export default function NuevaEvaluacionPage() {
         }
         formData.append("tipo", tipo);
         formData.append("archivo", files[0]);
+        formData.append("solo_manual", soloManual ? "true" : "false");
         response = await processEvaluacion(formData);
       }
       setResult(response);

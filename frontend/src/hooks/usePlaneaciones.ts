@@ -60,7 +60,8 @@ export function usePlaneaciones() {
     recursos: string,
     tipoActividad?: string,
     parent_plan_id?: string,
-    feedback?: string
+    feedback?: string,
+    documentoIds?: string[],
   }) => {
     setIsLoading(true);
     setError(null);
@@ -76,6 +77,7 @@ export function usePlaneaciones() {
         tipo_actividad: req.tipoActividad,
         parent_plan_id: req.parent_plan_id,
         feedback: req.feedback,
+        documento_ids: req.documentoIds?.length ? req.documentoIds : undefined,
       };
       const result = await apiPost<any>("/planeacion/", payload, token);
       setPlaneaciones((prev) => {

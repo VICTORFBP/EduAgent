@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
+from datetime import date as DateType
 from typing import List, Optional
 import time
 from app.middleware.auth_middleware import CurrentUser
@@ -86,12 +87,16 @@ class EstudianteCreate(BaseModel):
     grado: int
     sede_id: str
     docente_id: str
+    identificacion: Optional[str] = None
+    fecha_nacimiento: Optional[DateType] = None
 
 
 class EstudianteUpdate(BaseModel):
     nombre: Optional[str] = None
     grado: Optional[int] = None
     docente_id: Optional[str] = None
+    identificacion: Optional[str] = None
+    fecha_nacimiento: Optional[DateType] = None
 
 
 # ──────────────────────────────────────────────
@@ -238,14 +243,98 @@ async def create_estudiante(
     data: EstudianteCreate, admin_user: dict = Depends(require_admin)
 ):
     """Create a new estudiante linked to a sede and docente."""
+    docente = await supabase_service.get_docente(data.docente_id)
+    if not docente:
+        raise HTTPException(status_code=404, detail="Docente no encontrado.")
+    
+    if data.grado not in (docente.get("grados_asignados") or []):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"El docente no tiene asignado el grado {data.grado}."
+        )
+
     estudiante = {
         "nombre": data.nombre,
         "grado": data.grado,
         "sede_id": data.sede_id,
         "docente_id": data.docente_id,
     }
+    if data.identificacion:
+        estudiante["identificacion"] = data.identificacion
+    if data.fecha_nacimiento:
+        estudiante["fecha_nacimiento"] = data.fecha_nacimiento.isoformat()
     result = await supabase_service.create_estudiante(estudiante)
     return {"message": "Estudiante registrado exitosamente", "data": result}
+
+
+@router.post("/estudiantes/bulk", status_code=status.HTTP_201_CREATED)
+async def create_estudiantes_bulk(
+    data: List[EstudianteCreate], admin_user: dict = Depends(require_admin)
+):
+    """Bulk-insert multiple estudiantes in one request."""
+    if not data:
+        raise HTTPException(status_code=400, detail="La lista de estudiantes está vacía.")
+    if len(data) > 500:
+        raise HTTPException(status_code=400, detail="Máximo 500 estudiantes por lote.")
+
+    # Validate teachers' grades (cache to avoid redundant queries)
+    docente_cache = {}
+    rows = []
+    for d in data:
+        if d.docente_id not in docente_cache:
+            docente = await supabase_service.get_docente(d.docente_id)
+            if not docente:
+                raise HTTPException(status_code=404, detail=f"Docente {d.docente_id} no encontrado.")
+            docente_cache[d.docente_id] = docente.get("grados_asignados") or []
+        
+        if d.grado not in docente_cache[d.docente_id]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"El estudiante '{d.nombre}' tiene grado {d.grado}, pero su docente no lo tiene asignado."
+            )
+
+        row = {
+            "nombre": d.nombre,
+            "grado": d.grado,
+            "sede_id": d.sede_id,
+            "docente_id": d.docente_id,
+        }
+        if d.identificacion:
+            row["identificacion"] = d.identificacion
+        if d.fecha_nacimiento:
+            row["fecha_nacimiento"] = d.fecha_nacimiento.isoformat()
+        rows.append(row)
+
+    result = await supabase_service.create_estudiantes_bulk(rows)
+    return {"message": f"{len(result)} estudiante(s) registrados exitosamente", "data": result}
+
+
+@router.put("/estudiantes/{estudiante_id}")
+async def update_estudiante(
+    estudiante_id: str,
+    data: EstudianteUpdate,
+    admin_user: dict = Depends(require_admin),
+):
+    """Update an existing estudiante."""
+    # We should validate if the teacher assigned has the grade
+    if data.docente_id and data.grado:
+        docente = await supabase_service.get_docente(data.docente_id)
+        if not docente:
+            raise HTTPException(status_code=404, detail="Docente no encontrado.")
+        if data.grado not in (docente.get("grados_asignados") or []):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"El docente no tiene asignado el grado {data.grado}."
+            )
+    
+    update_data = data.model_dump(exclude_unset=True)
+    if "fecha_nacimiento" in update_data and update_data["fecha_nacimiento"]:
+        update_data["fecha_nacimiento"] = update_data["fecha_nacimiento"].isoformat()
+        
+    result = await supabase_service.update_estudiante(estudiante_id, update_data)
+    if not result:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado.")
+    return {"message": "Estudiante actualizado exitosamente", "data": result}
 
 
 @router.delete("/estudiantes/{estudiante_id}", status_code=status.HTTP_200_OK)

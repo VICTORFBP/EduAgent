@@ -217,6 +217,137 @@
   }
 }
 
+// ── Ejercicio de relacionar / emparejar columnas ──────────────────────────
+#let relacion(titulo-izq: "Columna A", titulo-der: "Columna B", pares) = {
+  context {
+    let cp = color-principal.get()
+    let cl = color-claro.get()
+    let ca = color-acento.get()
+    block(below: 1.2em, width: 100%)[
+      #table(
+        columns: (1fr, 40pt, 1fr),
+        stroke: 0.5pt + rgb("#d1d5db"),
+        inset: (x: 10pt, y: 9pt),
+        fill: (x, y) => if y == 0 { cp } else if calc.even(y) { rgb("#f9fafb") } else { white },
+        align: (left, center, left),
+        [#set text(fill: white, weight: "bold"); #titulo-izq],
+        [#set text(fill: white, weight: "bold"); ↔],
+        [#set text(fill: white, weight: "bold"); #titulo-der],
+        ..pares.map(par => (
+          [#set text(fill: rgb("#111827")); #par.at(0)],
+          [#set text(fill: ca, weight: "bold", size: 14pt); ·],
+          [#set text(fill: rgb("#111827")); #par.at(1)],
+        )).flatten()
+      )
+    ]
+  }
+}
+
+// ── Texto con espacios para completar (Cloze) ────────────────────────────
+#let completar-texto(cuerpo) = {
+  context {
+    let cp = color-principal.get()
+    let cl = color-claro.get()
+    block(
+      width: 100%,
+      fill: cl.lighten(40%),
+      radius: 5pt,
+      inset: (left: 14pt, top: 12pt, bottom: 12pt, right: 14pt),
+      below: 1em,
+      stroke: 1pt + cp.lighten(40%),
+    )[
+      #set text(size: 10.5pt, fill: rgb("#111827"))
+      #block(below: 0.5em)[
+        #set text(size: 8.5pt, weight: "bold", fill: cp)
+        🧩 COMPLETA LOS ESPACIOS
+      ]
+      #cuerpo
+    ]
+  }
+}
+
+// ── Ejercicio de ordenar secuencia ────────────────────────────────────────
+#let ordenar(instruccion: "Ordena los siguientes elementos:", items) = {
+  context {
+    let cp = color-principal.get()
+    let ca = color-acento.get()
+    block(below: 1.2em, width: 100%)[
+      #block(below: 0.6em)[
+        #set text(size: 10pt, weight: "semibold", fill: cp)
+        📝 #instruccion
+      ]
+      #for (i, item) in items.enumerate() {
+        block(below: 0.4em)[
+          #grid(
+            columns: (30pt, 1fr),
+            gutter: 8pt,
+            align: (center, left),
+            rect(
+              width: 24pt, height: 24pt,
+              stroke: 1.5pt + ca,
+              radius: 3pt,
+              fill: white,
+            )[],
+            block(
+              width: 100%,
+              fill: if calc.even(i) { rgb("#f9fafb") } else { white },
+              inset: (x: 10pt, y: 7pt),
+              radius: 3pt,
+              stroke: 0.5pt + rgb("#e5e7eb"),
+            )[#set text(fill: rgb("#111827")); #item],
+          )
+        ]
+      }
+    ]
+  }
+}
+
+// ── Texto para corregir errores ───────────────────────────────────────────
+#let corregir-texto(cuerpo) = {
+  context {
+    block(
+      width: 100%,
+      fill: rgb("#fef2f2"),
+      radius: 5pt,
+      inset: (left: 14pt, top: 12pt, bottom: 12pt, right: 14pt),
+      below: 1em,
+      stroke: 1.5pt + rgb("#ef4444"),
+    )[
+      #block(below: 0.5em)[
+        #set text(size: 8.5pt, weight: "bold", fill: rgb("#dc2626"))
+        ✏️ ENCUENTRA Y CORRIGE LOS ERRORES
+      ]
+      #set text(size: 10.5pt, fill: rgb("#111827"))
+      #cuerpo
+    ]
+  }
+}
+
+// ── Escala de valoración / Likert ─────────────────────────────────────────
+#let escala(opciones, items) = {
+  context {
+    let cp = color-principal.get()
+    let n-cols = opciones.len()
+    block(below: 1.2em, width: 100%)[
+      #table(
+        columns: (1fr, ..(30pt,) * n-cols),
+        stroke: 0.5pt + rgb("#d1d5db"),
+        inset: (x: 8pt, y: 8pt),
+        fill: (x, y) => if y == 0 { cp } else if calc.even(y) { rgb("#f9fafb") } else { white },
+        align: (left, ..(center,) * n-cols),
+        [#set text(fill: white, weight: "bold", size: 9pt); Ítem],
+        ..opciones.map(op => [#set text(fill: white, weight: "bold", size: 8pt); #op]),
+        ..items.map(item => (
+          [#set text(fill: rgb("#111827"), size: 9.5pt); #item],
+          ..range(n-cols).map(_ =>
+            rect(width: 16pt, height: 16pt, stroke: 0.8pt + rgb("#9ca3af"))[]
+          ),
+        )).flatten()
+      )
+    ]
+  }
+}
+
 // ── Sección de clave de respuestas (docente) ──────────────────────────────────
 #let seccion-clave(cuerpo) = [
   #pagebreak()

@@ -15,3 +15,30 @@ services:
     volumes:
       - ./n8n_data:/home/node/.n8n
     command: start
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eduagent_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env # Asegúrate de crear o tener tu .env de producción en el servidor
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eduagent_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000 # Para que el rewrite de Next.js encuentre el backend en la red de Docker
+    # Si tienes variables de entorno en el frontend, puedes añadir esto:
+    # env_file:
+    #   - ./frontend/.env.local
+    depends_on:
+      - backend

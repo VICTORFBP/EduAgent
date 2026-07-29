@@ -73,6 +73,16 @@ export function useDocumentos() {
     }
   };
 
+  const fetchDocumentosReferencia = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || undefined;
+      return await apiGet<any[]>("/documentos/referencia", token);
+    } catch (err: any) {
+      return [];
+    }
+  };
+
   return {
     documentos,
     isLoading,
@@ -81,5 +91,6 @@ export function useDocumentos() {
     uploadDocumento,
     deleteDocumento,
     reprocesarDocumento,
+    fetchDocumentosReferencia,
   };
 }

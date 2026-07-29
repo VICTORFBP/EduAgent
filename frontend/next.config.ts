@@ -8,12 +8,13 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   allowedDevOrigins: ["overview-headset-pouch.ngrok-free.dev", "vicdev.org"],
   async headers() {
     return [
       {
         // HTML pages: never cache — prevents stale HTML/JS hydration mismatches
-        source: "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)",
+        source: "/((?!_next/static|_next/image|favicon.ico).*)",
         headers: [
           {
             key: "Cache-Control",
@@ -37,7 +38,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://127.0.0.1:8000/:path*",
+        destination: `${process.env.BACKEND_URL || "http://127.0.0.1:8000"}/:path*`,
       },
     ];
   },
