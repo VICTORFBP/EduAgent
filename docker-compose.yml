@@ -49,10 +49,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared_tunnel
     restart: unless-stopped
-    command: tunnel run
-    volumes:
-      - ./cloudflared.yml:/etc/cloudflared/config.yml:ro
-      - ./credentials.json:/etc/cloudflared/credentials.json:ro
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - frontend
       - backend
