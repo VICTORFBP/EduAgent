@@ -25,12 +25,15 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./backend/.env # Asegúrate de crear o tener tu .env de producción en el servidor
+      - .env
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     container_name: eduagent_frontend
     restart: unless-stopped
     ports:
