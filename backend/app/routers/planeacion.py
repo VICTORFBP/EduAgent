@@ -101,6 +101,14 @@ async def create_planeacion(
 
         skill_context = _get_skill_context(request.area, tipo_actividad=request.tipo_actividad)
 
+        # Resolve documento_ids → contenido_texto for direct reference
+        reference_text_list: list[str] = []
+        if request.documento_ids:
+            reference_text_list = await supabase_service.get_documentos_text_content(
+                current_user["id"], request.documento_ids
+            )
+        reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
+
         raw = await n8n_service.trigger_planeacion(
             area=request.area,
             grados=request.grados,
@@ -112,6 +120,8 @@ async def create_planeacion(
             contenido_anterior=contenido_anterior,
             tipo_actividad=request.tipo_actividad,
             skill_context=skill_context,
+            reference_context=reference_context,
+            documento_ids=request.documento_ids,
         )
         exitoso = True
         return _extract_data(raw)
@@ -136,6 +146,7 @@ async def create_planeacion(
                     "tema": request.tema,
                     "grados": request.grados,
                     "es_refinamiento": request.parent_plan_id is not None,
+                    "reference_docs_count": len(reference_text_list),
                 },
             })
         except Exception as log_err:
@@ -201,6 +212,15 @@ async def _process_generar_actividad_bg(
 ):
     """Background task to generate and verify an activity."""
     try:
+        # Recuperar el reference_context de los documentos almacenados
+        reference_text_list: list[str] = []
+        documento_ids = plan.get("documento_ids") or []
+        if documento_ids:
+            reference_text_list = await supabase_service.get_documentos_text_content(
+                plan["docente_id"], documento_ids
+            )
+        reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
+
         await n8n_service.trigger_generar_actividad(
             planeacion_id=planeacion_id,
             area=plan["area"],
@@ -209,6 +229,7 @@ async def _process_generar_actividad_bg(
             contenido_generado=plan["contenido_generado"],
             tipo_actividad=plan.get("tipo_actividad"),
             skill_context=skill_context,
+            reference_context=reference_context,
         )
 
         updated_plan = await supabase_service.get_planeacion(planeacion_id)

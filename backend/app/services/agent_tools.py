@@ -37,6 +37,8 @@ TOOLS_SCHEMA = [
                 "Genera una planeación curricular completa usando IA y RAG. "
                 "Produce un plan de clase con objetivos, actividades (apertura, desarrollo, cierre), "
                 "diferenciación pedagógica y criterios de evaluación alineados con el MEN. "
+                "Si el docente ha subido documentos propios (guías, material de clase), puede adjuntarlos "
+                "como referencia directa indicando sus IDs. "
                 "Úsala cuando el docente quiera crear una nueva planeación de clase."
             ),
             "parameters": {
@@ -63,6 +65,11 @@ TOOLS_SCHEMA = [
                     "recursos": {
                         "type": "string",
                         "description": "Recursos disponibles. Por defecto 'tablero y cuadernos'.",
+                    },
+                    "documento_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "IDs de documentos propios del docente a usar como referencia directa.",
                     },
                 },
                 "required": ["area", "grados", "tema"],
@@ -224,9 +231,18 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
     tema = args.get("tema", "")
     duracion = args.get("duracion", 60)
     recursos = args.get("recursos", "tablero y cuadernos")
+    documento_ids = args.get("documento_ids") or []
 
     try:
         skill_context = _get_skill_context(area)
+
+        # Resolve documento_ids → openai_file_ids for direct reference
+        reference_file_ids: list[str] = []
+        if documento_ids:
+            reference_file_ids = await supabase_service.get_documentos_file_ids(
+                docente_id, documento_ids
+            )
+
         raw = await n8n_service.trigger_planeacion(
             area=area,
             grados=grados,
@@ -235,6 +251,7 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
             recursos=recursos,
             docente_id=docente_id,
             skill_context=skill_context,
+            reference_file_ids=reference_file_ids if reference_file_ids else None,
         )
         data = raw[0] if isinstance(raw, list) and raw else raw
 

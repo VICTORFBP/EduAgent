@@ -14,6 +14,10 @@ class PlaneacionCreateRequest(BaseModel):
     tipo_actividad: Optional[str] = Field(None, description="Tipo de actividad o instrucciones de formato")
     parent_plan_id: Optional[str] = Field(None, description="ID de la planeación padre para refinamiento")
     feedback: Optional[str] = Field(None, description="Comentarios de retroalimentación para refinamiento")
+    documento_ids: Optional[list[str]] = Field(
+        None,
+        description="IDs de documentos DOCENTE_CUSTOM a usar como referencia directa (sin vectorización)",
+    )
 
 
 class IndicadorLogro(BaseModel):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,13 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
+  Paperclip,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { AREAS, GRADOS } from "@/lib/types";
 import { usePlaneaciones } from "@/hooks/usePlaneaciones";
+import { useDocumentos } from "@/hooks/useDocumentos";
 import { toast } from "sonner";
 
 export default function NuevaPlaneacionPage() {
@@ -43,17 +46,31 @@ export default function NuevaPlaneacionPage() {
   const [tema, setTema] = useState("");
   const [recursos, setRecursos] = useState("");
   const [tipoActividad, setTipoActividad] = useState("");
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [docsReferencia, setDocsReferencia] = useState<any[]>([]);
   
   const { generatePlaneacion, isLoading, error } = usePlaneaciones();
+  const { fetchDocumentosReferencia } = useDocumentos();
   const [generatedPlan, setGeneratedPlan] = useState<any | null>(null);
   
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["objetivo", "actividades", "indicadores", "diferenciacion", "evaluacion", "dba"])
   );
 
+  // Load docente's own reference documents on mount
+  useEffect(() => {
+    fetchDocumentosReferencia().then(setDocsReferencia);
+  }, []);
+
   const toggleGrado = (g: number) => {
     setGrados((prev) =>
       prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g].sort()
+    );
+  };
+
+  const toggleDocRef = (id: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -76,6 +93,7 @@ export default function NuevaPlaneacionPage() {
         tema,
         recursos,
         tipoActividad: tipoActividad.trim() || undefined,
+        documentoIds: selectedDocIds.length > 0 ? selectedDocIds : undefined,
       });
       setGeneratedPlan(result);
       toast.success("Planeación generada correctamente");
@@ -214,6 +232,50 @@ export default function NuevaPlaneacionPage() {
                 La IA usará estas instrucciones para personalizar el formato de la actividad generada.
               </p>
             </div>
+
+            {/* Documentos de referencia */}
+            {docsReferencia.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-sky-400" />
+                  Documentos de referencia
+                  <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Selecciona tus documentos propios para que la IA los analice directamente al generar la planeación.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {docsReferencia.map((doc) => {
+                    const isSelected = selectedDocIds.includes(doc.id);
+                    return (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => toggleDocRef(doc.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                          isSelected
+                            ? "bg-sky-500/15 border-sky-500/40 text-sky-400"
+                            : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20"
+                        }`}
+                        title={doc.nombre}
+                      >
+                        <FileText className="w-3 h-3 shrink-0" />
+                        <span className="max-w-[160px] truncate">{doc.nombre}</span>
+                        {doc.area && (
+                          <span className="opacity-60">· {doc.area}</span>
+                        )}
+                        {isSelected && <X className="w-3 h-3 shrink-0 ml-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedDocIds.length > 0 && (
+                  <p className="text-xs text-sky-400/80">
+                    ✓ {selectedDocIds.length} documento(s) seleccionado(s) como referencia directa
+                  </p>
+                )}
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-lg">

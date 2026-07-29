@@ -16,6 +16,7 @@ from app.services.supabase_service import (
 from app.services.n8n_service import n8n_service
 from app.services.storage_service import storage_service, ALLOWED_DOCUMENT_MIMES
 from app.services.pdf_service import compress_pdf
+from app.services.text_extraction_service import text_extraction_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -104,6 +105,13 @@ async def upload_documento(
             file_bytes, filename, user_id, content_type
         )
 
+        # For DOCENTE_CUSTOM: extract text locally for direct reference
+        contenido_texto = None
+        if not is_admin:
+            contenido_texto = await text_extraction_service.extract_text(
+                file_bytes, content_type
+            )
+
         doc_data = {
             "id": str(uuid.uuid4()),
             "docente_id": user_id,
@@ -113,6 +121,7 @@ async def upload_documento(
             "area": area,
             "grado": grado,
             "vectorizado": False,
+            "contenido_texto": contenido_texto,
         }
         doc = await supabase_service.create_documento(doc_data)
 
@@ -219,6 +228,13 @@ async def upload_documentos_batch(
         # Derive name from original filename (strip uuid4 prefix)
         nombre = archivo.filename or filename
 
+        # For DOCENTE_CUSTOM: extract text locally for direct reference
+        contenido_texto = None
+        if not is_admin:
+            contenido_texto = await text_extraction_service.extract_text(
+                file_bytes, content_type
+            )
+
         doc_data = {
             "id": str(uuid.uuid4()),
             "docente_id": user_id,
@@ -228,6 +244,7 @@ async def upload_documentos_batch(
             "area": area,
             "grado": grado,
             "vectorizado": False,
+            "contenido_texto": contenido_texto,
         }
         doc = await supabase_service.create_documento(doc_data)
 
@@ -293,6 +310,20 @@ async def delete_documento(
 
     await supabase_service.delete_documento(documento_id)
     return {"deleted": True, "id": documento_id}
+
+
+# ──────────────────────────────────────────────
+# Documentos de referencia (docente)
+# ──────────────────────────────────────────────
+
+@router.get("/referencia")
+async def list_documentos_referencia(
+    current_user: dict = Depends(get_current_user),
+):
+    """List DOCENTE_CUSTOM documents that have been uploaded to OpenAI Files API
+    and are ready to be used as direct reference in planeación generation.
+    """
+    return await supabase_service.get_documentos_referencia(current_user["id"])
 
 
 # ──────────────────────────────────────────────

@@ -186,32 +186,21 @@ export default function DocumentosPage() {
                             {doc.grado && (
                               <Badge variant="outline" className="text-[10px] border-white/10">G{doc.grado}</Badge>
                             )}
-                            {doc.vectorizado ? (
-                              <Badge className="bg-emerald-500/15 text-emerald-500 border-0 text-[10px]">
+                            {doc.openai_file_id ? (
+                              <Badge className="bg-sky-500/15 text-sky-400 border-0 text-[10px]">
                                 <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
-                                Vectorizado
+                                Referencia IA
                               </Badge>
                             ) : (
                               <Badge className="bg-amber-500/15 text-amber-500 border-0 text-[10px]">
                                 <Clock className="w-2.5 h-2.5 mr-0.5" />
-                                Pendiente
+                                Procesando
                               </Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1.5">{formatDate(doc.created_at)}</p>
                         </div>
                         <div className="flex flex-col gap-1 absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                          {!doc.vectorizado && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReprocesar(doc.id)}
-                              className="text-primary hover:bg-primary/10"
-                              title="Reprocesar vectorización"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="icon"

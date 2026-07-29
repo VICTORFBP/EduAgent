@@ -117,7 +117,7 @@ export default function CargarDocumentoPage() {
           <p className="text-sm text-muted-foreground">
             {isAdmin 
               ? "Sube documentos oficiales del Ministerio (ej. DBAs, Estándares). Estarán disponibles para todos."
-              : "Sube PDFs curriculares o material de clase para que el sistema lo vectorice y lo incluya en tus consultas."}
+              : "Sube PDFs o imágenes de tus materiales de clase. La IA los analizará directamente como referencia al generar planeaciones, sin necesidad de vectorización."}
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -237,7 +237,9 @@ export default function CargarDocumentoPage() {
               <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
               <p className="font-medium text-sm">Carga exitosa</p>
               <p className="text-xs text-muted-foreground mt-1">
-                El procesamiento y vectorización han comenzado.
+                {isAdmin
+                  ? "El procesamiento y vectorización han comenzado."
+                  : "Tu documento está listo como referencia directa para la IA. Seléccionalo al crear tu próxima planeación."}
               </p>
               <div className="flex gap-2 mt-4 justify-center">
                 <Button variant="outline" size="sm" className="border-white/10" onClick={() => {
