@@ -40,8 +40,20 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:8000 # Para que el rewrite de Next.js encuentre el backend en la red de Docker
-    # Si tienes variables de entorno en el frontend, puedes añadir esto:
     # env_file:
     #   - ./frontend/.env.local
     depends_on:
       - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    restart: unless-stopped
+    command: tunnel run
+    volumes:
+      - ./cloudflared.yml:/etc/cloudflared/config.yml:ro
+      - ./credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      - frontend
+      - backend
+      - n8n
