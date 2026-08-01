@@ -65,16 +65,15 @@ _TYPST_STR_SPECIAL = re.compile(r'(["\\])')
 
 def _escape_plain_text(text: str) -> str:
     """Escape characters that cause parse errors in Typst plain content.
-    Escapes: < > @ _ (underscore triggers subscript in Typst)
-    Does NOT escape # * since those are valid Typst markup.
+    Escapes: < > @ _ # *
     """
     if not text:
         return ""
     # Escape _ that are NOT already preceded by a backslash
     # and NOT inside a #macro() call (handled by the split in _inline_placeholders)
     text = re.sub(r'(?<!\\)_', r'\_', text)
-    # Escape < > @ that are NOT already escaped
-    text = re.sub(r'(?<!\\)([<>@])', r'\\\1', text)
+    # Escape < > @ # * that are NOT already escaped
+    text = re.sub(r'(?<!\\)([<>@#*])', r'\\\1', text)
     return text
 
 
@@ -353,9 +352,8 @@ class TypstRenderer(mistune.BaseRenderer):
             lambda m: f'\n#opcion("{m.group(1)}", [{_escape_plain_text(m.group(2))}])\n',
             text
         )
-        # Escape plain text segments (< > @) — but NOT inside #macro(...) calls
-        # We split on existing #... macros to avoid double-escaping
-        parts = re.split(r'(#\w[^\n]*)', text)
+        # Escape plain text segments (< > @ # *) — but NOT inside #macro(...) calls we just injected
+        parts = re.split(r'(#(?:caja-respuesta|lineas-respuesta|opcion)[^\n]*)', text)
         escaped = []
         for i, part in enumerate(parts):
             if i % 2 == 0:
