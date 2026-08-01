@@ -4,14 +4,14 @@ services:
     container_name: n8n_eduagent
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       - GENERIC_TIMEZONE=America/Bogota
-      - N8N_HOST=localhost
+      - N8N_HOST=n8n.vicdev.org
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=https
       - NODE_ENV=production
-      # - WEBHOOK_URL=http://localhost:5678/ # Opcional si se utiliza tunnel externo como Ngrok más adelante
+      - WEBHOOK_URL=https://n8n.vicdev.org/
     volumes:
       - ./n8n_data:/home/node/.n8n
     command: start
