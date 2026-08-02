@@ -13,7 +13,7 @@ from app.services.supabase_service import (
     DOCENTE_MAX_DOCS,
     DOCENTE_MAX_FILE_MB,
 )
-from app.services.n8n_service import n8n_service
+from app.services.rag_service import rag_service
 from app.services.storage_service import storage_service, ALLOWED_DOCUMENT_MIMES
 from app.services.pdf_service import compress_pdf
 from app.services.text_extraction_service import text_extraction_service
@@ -27,20 +27,26 @@ MAX_BATCH_FILES = 5  # Max files per batch upload for docentes
 async def _trigger_ingesta_background(
     doc_id: str, storage_path: str, area: Optional[str], grado: Optional[int]
 ) -> None:
-    """Fire-and-forget: trigger n8n vectorization; errors are logged only."""
+    """Background: download file from storage and ingest into vector store."""
     try:
         bucket = storage_path.split("/")[0]
         rel_path = "/".join(storage_path.split("/")[1:])
-        file_url = await storage_service.create_signed_url(bucket, rel_path)
-        await n8n_service.trigger_ingesta(
-            documento_id=doc_id,
-            storage_path=storage_path,
+
+        # Download the file from storage
+        file_bytes = await storage_service.download_file(bucket, rel_path)
+        if not file_bytes:
+            logger.error(f"Failed to download file for ingestion: {storage_path}")
+            return
+
+        chunks_count = await rag_service.ingest_document(
+            doc_id=doc_id,
+            file_bytes=file_bytes,
             area=area,
             grado=grado,
-            file_url=file_url,
         )
+        logger.info(f"Document {doc_id} ingested: {chunks_count} chunks ✅")
     except Exception as e:
-        logger.warning(f"n8n ingesta trigger failed for {doc_id}: {e}")
+        logger.warning(f"Document ingestion failed for {doc_id}: {e}")
 
 
 # ──────────────────────────────────────────────
@@ -58,7 +64,7 @@ async def upload_documento(
 ):
     """
     Upload a document.
-    - Admin  → MEN_OFICIAL type, triggers vectorization via n8n.
+    - Admin  → MEN_OFICIAL type, triggers vectorization directly.
     - Docente → DOCENTE_CUSTOM type, stored for temporary AI analysis only.
                 Enforces max 10 docs / 50 MB per file.
     """
@@ -320,7 +326,7 @@ async def delete_documento(
 async def list_documentos_referencia(
     current_user: dict = Depends(get_current_user),
 ):
-    """List DOCENTE_CUSTOM documents that have been uploaded to OpenAI Files API
+    """List DOCENTE_CUSTOM documents that have extracted text content
     and are ready to be used as direct reference in planeación generation.
     """
     return await supabase_service.get_documentos_referencia(current_user["id"])

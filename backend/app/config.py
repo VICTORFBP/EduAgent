@@ -11,19 +11,12 @@ class Settings(BaseSettings):
     supabase_url: str = "https://xxxx.supabase.co"
     supabase_service_key: str = ""
 
-    # --- n8n Webhooks ---
-    n8n_base_url: str = "http://localhost:5678"
-    n8n_api_key: str = ""
-    n8n_webhook_ingesta: str = "http://localhost:5678/webhook/ingesta-pdf"
-    n8n_webhook_planeacion: str = "http://localhost:5678/webhook/planeacion"
-    n8n_webhook_evaluacion: str = "http://localhost:5678/webhook/evaluacion-vision"
-    n8n_webhook_consulta: str = "http://localhost:5678/webhook/consulta"
-    n8n_webhook_verificar: str = "http://localhost:5678/webhook/verificar-actividad"
-    n8n_webhook_secret: str = ""
-
-    # --- OpenAI Agent ---
+    # --- OpenAI ---
     openai_api_key: str = ""
     agent_model: str = "gpt-4o-mini"
+    openai_generation_model: str = "gpt-4o-mini"
+    openai_vision_model: str = "gpt-4o"
+    openai_embedding_model: str = "text-embedding-3-small"
 
     # --- App ---
     cors_origins: str = "http://localhost:3000"

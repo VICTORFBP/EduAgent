@@ -188,40 +188,33 @@ TOOLS_SCHEMA = [
 ]
 
 
-# ─── Tool Executors ───────────────────────────────────────────────────────────
-
 async def _exec_consultar_documentos(args: dict, docente_id: str, session_id: str | None) -> str:
-    from app.services.n8n_service import n8n_service
+    from app.services.openai_service import openai_service
+    from app.services.rag_service import rag_service
 
     pregunta = args.get("pregunta", "")
     try:
-        raw = await n8n_service.trigger_consulta(
-            pregunta=pregunta,
-            docente_id=docente_id,
-            session_id=session_id,
+        # Buscamos en todo el conocimiento del colegio (por ahora sin filtro estricto de área)
+        rag_results = await rag_service.search_documents(
+            query=pregunta,
+            top_k=5,
         )
-        if isinstance(raw, dict) and "data" in raw:
-            raw = raw["data"]
-        if isinstance(raw, list) and raw:
-            raw = raw[0]
-        if isinstance(raw, dict):
-            text = (
-                raw.get("output")
-                or raw.get("respuesta")
-                or raw.get("answer")
-                or raw.get("text")
-                or raw.get("content")
-                or ""
-            )
-            return text or "No se encontró información relevante en los documentos."
-        return str(raw) if raw else "No se encontró información relevante en los documentos."
+        rag_context = "\n\n".join([r["content"] for r in rag_results]) if rag_results else ""
+
+        respuesta = await openai_service.chat_rag(
+            pregunta=pregunta,
+            rag_context=rag_context
+        )
+        
+        return respuesta or "No se encontró información relevante en los documentos."
     except Exception as e:
         logger.error(f"consultar_documentos error: {e}")
         return f"No pude consultar los documentos en este momento. Error: {str(e)}"
 
 
 async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
-    from app.services.n8n_service import n8n_service
+    from app.services.openai_service import openai_service
+    from app.services.rag_service import rag_service
     from app.services.supabase_service import supabase_service
     from app.routers.planeacion import _get_skill_context
     import uuid
@@ -236,14 +229,20 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
     try:
         skill_context = _get_skill_context(area)
 
-        # Resolve documento_ids → openai_file_ids for direct reference
-        reference_file_ids: list[str] = []
+        # RAG context for standards
+        rag_query = f"{area} grado {', '.join(str(g) for g in grados)} {tema}"
+        rag_results = await rag_service.search_documents(rag_query, top_k=5)
+        rag_context = "\n\n".join([r["content"] for r in rag_results]) if rag_results else None
+
+        # Resolve documento_ids → text for direct reference
+        reference_context = None
         if documento_ids:
-            reference_file_ids = await supabase_service.get_documentos_file_ids(
+            texts = await supabase_service.get_documentos_text_content(
                 docente_id, documento_ids
             )
+            reference_context = "\n\n".join(texts) if texts else None
 
-        raw = await n8n_service.trigger_planeacion(
+        result = await openai_service.generate_planeacion(
             area=area,
             grados=grados,
             tema=tema,
@@ -251,23 +250,22 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
             recursos=recursos,
             docente_id=docente_id,
             skill_context=skill_context,
-            reference_file_ids=reference_file_ids if reference_file_ids else None,
+            reference_context=reference_context,
+            rag_context=rag_context,
         )
-        data = raw[0] if isinstance(raw, list) and raw else raw
 
         saved_id = None
         try:
-            contenido = data.get("contenido_generado") or data
             insert_data = {
-                "id": data.get("id") or str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),
                 "docente_id": docente_id,
                 "area": area,
                 "grados": grados,
                 "tema": tema,
-                "contenido_generado": contenido,
-                "dba_referenciados": data.get("dba_referenciados", []),
-                "agente_usado": data.get("agente_usado", "EduAgent-AI"),
-                "tokens_consumidos": data.get("tokens_consumidos", 0),
+                "contenido_generado": result["contenido_generado"],
+                "dba_referenciados": result.get("dba_referenciados", []),
+                "agente_usado": result.get("agente_usado", "EduAgent-AI"),
+                "tokens_consumidos": result.get("tokens_consumidos", 0),
                 "validada_docente": False,
                 "correcciones": None,
             }
@@ -284,7 +282,7 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
         if saved_id:
             resumen.append(f"💾 **Guardada** con ID: `{saved_id}`")
 
-        contenido = data.get("contenido_generado") or data
+        contenido = result.get("contenido_generado", {})
         if isinstance(contenido, dict):
             if contenido.get("objetivo"):
                 resumen.append(f"\n**Objetivo**: {contenido['objetivo'][:200]}...")

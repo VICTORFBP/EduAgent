@@ -13,7 +13,8 @@ from app.models.planeacion import (
     PlaneacionListResponse,
 )
 from app.services.supabase_service import supabase_service
-from app.services.n8n_service import n8n_service
+from app.services.openai_service import openai_service
+from app.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -74,19 +75,12 @@ def _get_skill_context(area: str, tipo_actividad: str | None = None) -> str:
     return f"{standards}\n\n{components}\n\n---\n\n{skill_content}"
 
 
-def _extract_data(raw) -> dict:
-    """Extract a single item from n8n response."""
-    if isinstance(raw, list) and len(raw) > 0:
-        return raw[0]
-    return raw
-
-
 @router.post("/", response_model=dict)
 async def create_planeacion(
     request: PlaneacionCreateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """Generate a new planeacion using the RAG agent via n8n."""
+    """Generate a new planeacion using OpenAI with RAG context."""
     t_start = time.time()
     exitoso = False
     try:
@@ -109,7 +103,12 @@ async def create_planeacion(
             )
         reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
 
-        raw = await n8n_service.trigger_planeacion(
+        # RAG: search for relevant DBA/Standards in vector store
+        rag_query = f"{request.area} grado {', '.join(str(g) for g in request.grados)} {request.tema}"
+        rag_results = await rag_service.search_documents(rag_query, top_k=5)
+        rag_context = "\n\n".join([r["content"] for r in rag_results]) if rag_results else None
+
+        result = await openai_service.generate_planeacion(
             area=request.area,
             grados=request.grados,
             tema=request.tema,
@@ -121,10 +120,15 @@ async def create_planeacion(
             tipo_actividad=request.tipo_actividad,
             skill_context=skill_context,
             reference_context=reference_context,
-            documento_ids=request.documento_ids,
+            rag_context=rag_context,
         )
+
+        # Add documento_ids to the result for persistence
+        if request.documento_ids:
+            result["documento_ids"] = request.documento_ids
+
         exitoso = True
-        return _extract_data(raw)
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -167,7 +171,7 @@ async def get_planeacion(
     """Get a single planeacion by ID."""
     plan = await supabase_service.get_planeacion(planeacion_id)
     if not plan:
-        raise HTTPException(status_code=404, detail="Planeaci?n no encontrada")
+        raise HTTPException(status_code=404, detail="Planeación no encontrada")
     return plan
 
 
@@ -196,10 +200,10 @@ async def delete_planeacion(
     """Delete a planeacion owned by the current docente."""
     plan = await supabase_service.get_planeacion(planeacion_id)
     if not plan:
-        raise HTTPException(status_code=404, detail="Planeaci?n no encontrada")
+        raise HTTPException(status_code=404, detail="Planeación no encontrada")
     if plan.get("docente_id") != current_user["id"]:
         raise HTTPException(
-            status_code=403, detail="No tienes permiso para eliminar esta planeaci?n"
+            status_code=403, detail="No tienes permiso para eliminar esta planeación"
         )
     await supabase_service.delete_planeacion(planeacion_id)
     return {"deleted": True, "id": planeacion_id}
@@ -221,8 +225,7 @@ async def _process_generar_actividad_bg(
             )
         reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
 
-        await n8n_service.trigger_generar_actividad(
-            planeacion_id=planeacion_id,
+        actividad = await openai_service.generate_actividad(
             area=plan["area"],
             grados=plan["grados"],
             tema=plan["tema"],
@@ -232,20 +235,20 @@ async def _process_generar_actividad_bg(
             reference_context=reference_context,
         )
 
-        updated_plan = await supabase_service.get_planeacion(planeacion_id)
-        if not updated_plan:
-            return
+        # Save activity to planeacion
+        await supabase_service.update_planeacion(
+            planeacion_id,
+            {"actividad_generada": actividad}
+        )
 
-        actividad_generada = updated_plan.get("actividad_generada")
-        
         # Automatic Verification
-        if actividad_generada:
+        if actividad:
             try:
-                verified_actividad = await n8n_service.trigger_verificar_actividad(actividad_generada)
+                verified_actividad = await openai_service.verify_actividad(actividad)
                 if verified_actividad and isinstance(verified_actividad, dict):
                     if "contenido_grados" in verified_actividad or "titulo" in verified_actividad:
                         await supabase_service.update_planeacion(
-                            planeacion_id, 
+                            planeacion_id,
                             {"actividad_generada": verified_actividad}
                         )
             except Exception as e:
@@ -263,7 +266,7 @@ async def generate_actividad(
     try:
         plan = await supabase_service.get_planeacion(planeacion_id)
         if not plan:
-            raise HTTPException(status_code=404, detail="Planeaci?n no encontrada")
+            raise HTTPException(status_code=404, detail="Planeación no encontrada")
 
         skill_context = _get_skill_context(plan["area"], tipo_actividad=plan.get("tipo_actividad"))
 
@@ -362,5 +365,3 @@ async def get_prueba_estandarizada_pdf(
             status_code=500,
             detail=f"Error interno al generar el PDF de prueba: {repr(e)}",
         )
-
-

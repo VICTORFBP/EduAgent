@@ -124,6 +124,17 @@ class StorageService:
             return self.client.storage.from_(bucket).get_public_url(path)
         return f"https://placeholder/{bucket}/{path}"
 
+    async def download_file(self, bucket: str, path: str) -> bytes | None:
+        """Download file bytes from Supabase Storage."""
+        if self.client:
+            try:
+                storage_path = path.replace(f"{bucket}/", "", 1)
+                data = self.client.storage.from_(bucket).download(storage_path)
+                return data
+            except Exception as e:
+                logger.error(f"Error downloading {bucket}/{path}: {e}")
+        return None
+
     async def create_signed_url(
         self, bucket: str, path: str, expires_in: int = 3600
     ) -> str:

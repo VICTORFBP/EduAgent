@@ -1,14 +1,17 @@
 """EduAgent — Consulta RAG Router."""
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
-from app.middleware.auth_middleware import get_current_user
-from app.services.n8n_service import n8n_service
-from app.services.supabase_service import supabase_service
 import logging
 import time
 import uuid
 from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from app.middleware.auth_middleware import get_current_user
+from app.services.supabase_service import supabase_service
+from app.services.openai_service import openai_service
+from app.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -21,70 +24,38 @@ class ConsultaRequest(BaseModel):
     grado: int | None = Field(None, ge=1, le=5, description="Filtro por grado")
 
 
-def _extract_text(raw) -> str | None:
-    """
-    Extract the assistant's text from whatever n8n returns.
-
-    n8n webhook (lastNode mode) can return:
-      - A list of item objects: [{"output": "..."}, ...]
-      - A single dict:          {"output": "..."}
-      - Nested in data key:     {"data": [{"output": "..."}]}
-    """
-    if raw is None:
-        return None
-
-    # Unwrap {"data": [...]} envelope
-    if isinstance(raw, dict) and "data" in raw:
-        raw = raw["data"]
-
-    # Handle list — n8n returns items as array
-    if isinstance(raw, list) and len(raw) > 0:
-        raw = raw[0]  # Take the first item
-
-    # Now raw should be a dict
-    if isinstance(raw, dict):
-        return (
-            raw.get("output")
-            or raw.get("respuesta")
-            or raw.get("answer")
-            or raw.get("text")
-            or raw.get("content")
-        )
-
-    # Last resort — stringify whatever we got
-    if raw:
-        return str(raw)
-
-    return None
-
-
 @router.post("/")
 async def consulta_rag(
     request: ConsultaRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """Send a question to the RAG chat agent via n8n and return a structured response."""
+    """Send a question to the RAG chat agent directly via openai_service."""
     t_start = time.time()
     exitoso = False
     try:
-        raw = await n8n_service.trigger_consulta(
-            pregunta=request.pregunta,
-            docente_id=current_user["id"],
-            session_id=request.session_id,
-            area=request.area,
-            grado=request.grado,
+        # 1. Search for relevant context
+        filter_metadata = {}
+        if request.area:
+            filter_metadata["area"] = request.area
+        if request.grado:
+            filter_metadata["grado"] = request.grado
+
+        # Only search official MEN documents and this user's custom docs
+        # Since pgvector doesn't support complex JOINs in RPC easily, we rely on the query 
+        # embedding similarity. For a production app, we would add RLS or pass doc IDs.
+        
+        rag_results = await rag_service.search_documents(
+            query=request.pregunta,
+            top_k=5,
+            filter_metadata=filter_metadata if filter_metadata else None,
         )
+        rag_context = "\n\n".join([r["content"] for r in rag_results]) if rag_results else ""
 
-        logger.info(f"n8n raw response type={type(raw).__name__}: {str(raw)[:200]}")
-
-        respuesta_texto = _extract_text(raw)
-
-        if not respuesta_texto:
-            logger.warning(f"Could not extract text from n8n response: {raw}")
-            respuesta_texto = (
-                "EduAgent recibió tu pregunta pero no pudo generar una respuesta. "
-                "Por favor intenta de nuevo en unos momentos."
-            )
+        # 2. Get answer from OpenAI
+        respuesta_texto = await openai_service.chat_rag(
+            pregunta=request.pregunta,
+            rag_context=rag_context
+        )
 
         exitoso = True
         return {

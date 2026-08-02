@@ -1,21 +1,4 @@
 services:
-  n8n:
-    image: n8nio/n8n:2.18.0
-    container_name: n8n_eduagent
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:5678:5678"
-    environment:
-      - GENERIC_TIMEZONE=America/Bogota
-      - N8N_HOST=n8n.vicdev.org
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - NODE_ENV=production
-      - WEBHOOK_URL=https://n8n.vicdev.org/
-    volumes:
-      - ./n8n_data:/home/node/.n8n
-    command: start
-
   backend:
     build:
       context: ./backend
@@ -54,4 +37,3 @@ services:
     depends_on:
       - frontend
       - backend
-      - n8n

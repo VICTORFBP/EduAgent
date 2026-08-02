@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, B
 
 from app.middleware.auth_middleware import get_current_user
 from app.services.supabase_service import supabase_service
-from app.services.n8n_service import n8n_service
+from app.services.openai_service import openai_service
 from app.services.storage_service import storage_service, ALLOWED_EVALUATION_MIMES
 
 logger = logging.getLogger(__name__)
@@ -26,22 +26,77 @@ async def _trigger_evaluacion_background(
     contexto_evaluacion: dict | None = None,
     estudiantes_lote: list[dict] | None = None,
 ) -> None:
-    """Fire-and-forget: trigger n8n Gemini Vision evaluation; errors logged only."""
+    """Process evaluation with GPT-4o Vision: OCR + grading; errors logged only."""
     try:
         signed_url = await storage_service.create_signed_url(bucket, rel_path, expires_in=3600)
-        await n8n_service.trigger_evaluacion(
-            evaluacion_id=evaluacion_id,
-            estudiante_id=estudiante_id,
-            docente_id=docente_id,
+
+        # Step 1: OCR — extract student answers using Vision
+        vision_data = await openai_service.evaluate_with_vision(
+            image_data=signed_url,
+            content_type="image/jpeg",  # Vision handles URL regardless of type
+            tipo=tipo,
+            is_url=True,
+        )
+
+        # Step 2: Grade — compare with answer key
+        grade_data = await openai_service.evaluate_grade(
+            vision_data=vision_data,
             area=area,
             tipo=tipo,
-            archivo_url=signed_url,
             contexto_evaluacion=contexto_evaluacion,
             estudiantes_lote=estudiantes_lote,
         )
-        logger.info(f"Evaluación {evaluacion_id} enviada a Gemini Vision via n8n ✅")
+
+        # Build update payload
+        nota = grade_data.get("nota")
+        if nota is not None:
+            try:
+                nota = float(nota)
+            except (TypeError, ValueError):
+                nota = None
+
+        update_data: dict = {
+            "procesado_correctamente": nota is not None,
+            "error_ocr": None if nota is not None else (
+                "OpenAI no devolvió la nota."
+            ),
+        }
+
+        # Check if already manually graded
+        eval_data = await supabase_service.get_evaluacion(evaluacion_id)
+        if eval_data and eval_data.get("calificacion_manual"):
+            if nota is not None:
+                update_data["nota_ia"] = nota
+        else:
+            if nota is not None:
+                update_data["nota"] = nota
+                update_data["nota_ia"] = nota
+            retro = grade_data.get("retroalimentacion") or grade_data.get("feedback")
+            if retro:
+                update_data["retroalimentacion"] = retro
+
+        # Handle student identification from batch
+        estudiante_id_detected = grade_data.get("estudiante_id")
+        if estudiante_id_detected and estudiantes_lote:
+            matched = next(
+                (e for e in estudiantes_lote if e["id"] == estudiante_id_detected),
+                None
+            )
+            if matched:
+                update_data["estudiante_id"] = estudiante_id_detected
+                update_data["estudiante_nombre"] = matched["nombre"]
+
+        await supabase_service.update_evaluacion(evaluacion_id, update_data)
+        logger.info(f"Evaluación {evaluacion_id} procesada con GPT-4o Vision ✅ nota={nota}")
     except Exception as e:
-        logger.error(f"n8n evaluación trigger failed for {evaluacion_id}: {e}")
+        logger.error(f"Evaluación processing failed for {evaluacion_id}: {e}")
+        try:
+            await supabase_service.update_evaluacion(evaluacion_id, {
+                "procesado_correctamente": False,
+                "error_ocr": f"Error procesando: {str(e)[:200]}",
+            })
+        except Exception:
+            pass
 
 
 @router.post("/")
@@ -60,8 +115,7 @@ async def create_evaluacion(
     """
     Upload and process a student evaluation.
     Returns immediately with the created record ID.
-    Gemini Vision processing happens asynchronously via n8n.
-    The result is updated via POST /callback/evaluacion-completada.
+    GPT-4o Vision processing happens asynchronously in the background.
     """
     content_type = archivo.content_type or ""
     if content_type not in ALLOWED_EVALUATION_MIMES:
@@ -140,7 +194,7 @@ async def create_evaluacion(
                     "actividad_generada": plan.get("actividad_generada"),
                 }
 
-        # Fire-and-forget n8n call (Gemini Vision) unless solo_manual is True
+        # Fire-and-forget GPT-4o Vision call unless solo_manual is True
         if not solo_manual:
             bucket, rel_path = storage_path.split("/", 1)
             background_tasks.add_task(
@@ -154,7 +208,7 @@ async def create_evaluacion(
                 rel_path,
                 contexto_evaluacion,
             )
-            message = "Evaluación creada. Gemini Vision está analizando el archivo..."
+            message = "Evaluación creada. GPT-4o Vision está analizando el archivo..."
         else:
             message = "Evaluación creada. Lista para calificación manual."
 
@@ -343,7 +397,7 @@ async def retry_evaluacion(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
-    """Retry an evaluation processing in n8n."""
+    """Retry evaluation processing with GPT-4o Vision."""
     eval_data = await supabase_service.get_evaluacion(evaluacion_id)
     if not eval_data:
         raise HTTPException(status_code=404, detail="Evaluación no encontrada")
@@ -372,7 +426,7 @@ async def retry_evaluacion(
         estudiantes = await supabase_service.get_estudiantes(current_user["id"])
         estudiantes_lote = [{"id": e["id"], "nombre": e["nombre"]} for e in estudiantes]
 
-    # Fire-and-forget n8n call
+    # Fire-and-forget GPT-4o Vision call
     bucket, rel_path = eval_data["archivo_path"].split("/", 1)
     background_tasks.add_task(
         _trigger_evaluacion_background,
