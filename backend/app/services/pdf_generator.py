@@ -65,15 +65,17 @@ _TYPST_STR_SPECIAL = re.compile(r'(["\\])')
 
 def _escape_plain_text(text: str) -> str:
     """Escape characters that cause parse errors in Typst plain content.
-    Escapes: < > @ _ # *
+    Escapes: \\ < > @ _ # *
     """
     if not text:
         return ""
-    # Escape _ that are NOT already preceded by a backslash
-    # and NOT inside a #macro() call (handled by the split in _inline_placeholders)
-    text = re.sub(r'(?<!\\)_', r'\_', text)
-    # Escape < > @ # * that are NOT already escaped
-    text = re.sub(r'(?<!\\)([<>@#*])', r'\\\1', text)
+    # 1. Unescape Markdown backslash escapes (e.g., \\# -> #)
+    text = re.sub(r'\\([!"#$%&\'()*+,\-./:;<=>?@[\\\]^_`{|}~])', r'\1', text)
+    # 2. Escape Typst special characters:
+    # First escape \\ to \\\\
+    text = text.replace('\\', '\\\\')
+    # Then escape the rest
+    text = re.sub(r'([<>@_#*])', r'\\\1', text)
     return text
 
 
@@ -919,7 +921,8 @@ class PdfGeneratorService:
             f'conf-prueba, hoja-respuestas, recuadro, fragmento-lectura, '
             f'opcion, tabla-formato, bloque-instrucciones\n'
             f'#import "{self._TEMPLATE_IMPORT}": lineas-respuesta, caja-respuesta, '
-            f'verdadero-falso, dibujo, grilla, seccion-clave\n\n'
+            f'verdadero-falso, dibujo, grilla, seccion-clave, '
+            f'relacion, completar-texto, ordenar, corregir-texto, escala\n\n'
             f'#show: doc => conf-prueba(\n'
             f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
             f'  area: "{_escape_str_arg(area_key)}",\n'

@@ -78,14 +78,15 @@ export function ActividadDialog({
   const buildPdfUrl = (grade: number | null | undefined, docenteMode = false) => {
     if (!grade) return null;
     const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const ts = Date.now();
     if (isPruebaEstandarizada) {
       return `${base}/planeacion/${plan.id}/actividad/prueba-pdf?grado=${grade}${
         docenteMode ? "&docente=true" : ""
-      }`;
+      }&t=${ts}`;
     }
     return `${base}/planeacion/${plan.id}/actividad/pdf?grado=${grade}${
       docenteMode ? "&docente=true" : ""
-    }#toolbar=0&navpanes=0`;
+    }&t=${ts}#toolbar=0&navpanes=0`;
   };
 
   useEffect(() => {

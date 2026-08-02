@@ -10,6 +10,7 @@
 //   conf-prueba, hoja-respuestas, conf-clave-docente
 //
 #import "@preview/mitex:0.2.4": *
+#let kai = ""
 
 // ─── Estado global de color principal ────────────────────────────────────────
 #let color-principal = state("cp", rgb("#1e40af"))
@@ -30,109 +31,26 @@
 )
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  COMPONENTES REUTILIZADOS (idénticos a actividad.typ)
+//  COMPONENTES REUTILIZADOS (importados de actividad.typ)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#let bloque-instrucciones(texto) = {
-  if texto == "" or texto == none { return }
-  context {
-    let cp = color-principal.get()
-    let cl = color-claro.get()
-    block(
-      width: 100%,
-      fill: cl,
-      radius: (right: 5pt),
-      inset: (left: 14pt, top: 10pt, bottom: 10pt, right: 14pt),
-      below: 1.5em,
-      stroke: (left: 4pt + cp),
-    )[
-      #set text(size: 10pt, weight: "semibold", fill: cp)
-      #texto
-    ]
-  }
-}
-
-#let recuadro(titulo: "", cuerpo) = {
-  context {
-    let cp = color-principal.get()
-    let cl = color-claro.get()
-    let ca = color-acento.get()
-    block(
-      width: 100%,
-      fill: cl,
-      radius: 5pt,
-      inset: (left: 14pt, top: 10pt, bottom: 10pt, right: 14pt),
-      below: 1em,
-      stroke: 1.5pt + ca,
-    )[
-      #if titulo != "" [
-        #set text(size: 8.5pt, weight: "bold", fill: cp)
-        #upper(titulo)
-        #v(0.3em)
-      ]
-      #set text(fill: rgb("#111827"))
-      #cuerpo
-    ]
-  }
-}
-
-#let fragmento-lectura(cuerpo) = {
-  context {
-    let ca = color-acento.get()
-    block(
-      width: 100%,
-      fill: rgb("#f8fafc"),
-      inset: (left: 16pt, top: 12pt, bottom: 12pt, right: 16pt),
-      below: 1em,
-      stroke: (left: 3.5pt + ca),
-    )[
-      #set text(size: 10.5pt, style: "italic", fill: rgb("#374151"))
-      #cuerpo
-    ]
-  }
-}
-
-#let tabla-formato(cols: 2, items) = {
-  context {
-    let cp = color-principal.get()
-    block(below: 1.2em, width: 100%)[
-      #table(
-        columns: cols,
-        stroke: 0.5pt + rgb("#d1d5db"),
-        inset: (x: 10pt, y: 8pt),
-        fill: (x, y) => if y == 0 { cp } else if calc.even(y) { rgb("#f9fafb") } else { white },
-        ..items.enumerate().map(((i, item)) => {
-          if int(i / cols) == 0 {
-            [#set text(fill: white, weight: "bold", size: 10pt); #item]
-          } else {
-            [#set text(fill: rgb("#111827")); #item]
-          }
-        })
-      )
-    ]
-  }
-}
-
-// ── Opción de selección múltiple ──────────────────────────────────────────────
-#let opcion(letra, texto) = {
-  context {
-    let cp = color-principal.get()
-    block(below: 0.4em)[
-      #grid(
-        columns: (16pt, 18pt, 1fr),
-        gutter: 6pt,
-        align: (center, center, left),
-        [#set text(weight: "bold", fill: cp); #letra.],
-        rect(
-          width: 14pt, height: 14pt,
-          stroke: 1.5pt + rgb("#6b7280"),
-          radius: 2pt
-        )[],
-        [#set text(fill: rgb("#111827")); #texto],
-      )
-    ]
-  }
-}
+#import "actividad.typ": (
+  bloque-instrucciones,
+  recuadro,
+  fragmento-lectura,
+  tabla-formato,
+  opcion,
+  lineas-respuesta,
+  grilla,
+  verdadero-falso,
+  caja-respuesta,
+  dibujo,
+  relacion,
+  completar-texto,
+  ordenar,
+  corregir-texto,
+  escala
+)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HOJA DE RESPUESTAS
