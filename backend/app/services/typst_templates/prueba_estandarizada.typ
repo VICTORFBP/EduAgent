@@ -10,7 +10,6 @@
 //   conf-prueba, hoja-respuestas, conf-clave-docente
 //
 #import "@preview/mitex:0.2.4": *
-#let kai = ""
 
 // ─── Estado global de color principal ────────────────────────────────────────
 #let color-principal = state("cp", rgb("#1e40af"))

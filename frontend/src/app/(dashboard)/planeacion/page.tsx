@@ -144,9 +144,9 @@ export default function PlaneacionPage() {
                       {plan.tema}
                     </h3>
                     <div className="flex flex-wrap gap-1">
-                      {plan.grados.map((g: number) => (
+                      {plan.grados.map((g: number, idx: number) => (
                         <span
-                          key={g}
+                          key={`${plan.id}-grado-${g}-${idx}`}
                           className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground"
                         >
                           Grado {g}

@@ -126,9 +126,11 @@ async def create_planeacion(
         # Add documento_ids to the result for persistence
         if request.documento_ids:
             result["documento_ids"] = request.documento_ids
-
+        # Save to database
+        saved_plan = await supabase_service.create_planeacion(result)
+        
         exitoso = True
-        return result
+        return saved_plan
     except HTTPException:
         raise
     except Exception as e:
@@ -311,7 +313,10 @@ async def get_actividad_pdf(
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"inline; filename=actividad_grado_{grado}_{suffix}.pdf"}
+            headers={
+                "Content-Disposition": f"inline; filename=actividad_grado_{grado}_{suffix}.pdf",
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+            }
         )
     except Exception as e:
         import traceback

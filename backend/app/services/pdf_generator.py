@@ -65,7 +65,7 @@ _TYPST_STR_SPECIAL = re.compile(r'(["\\])')
 
 def _escape_plain_text(text: str) -> str:
     """Escape characters that cause parse errors in Typst plain content.
-    Escapes: \\ < > @ _ # *
+    Escapes: \\ < > @ _ # * [ ]
     """
     if not text:
         return ""
@@ -75,7 +75,7 @@ def _escape_plain_text(text: str) -> str:
     # First escape \\ to \\\\
     text = text.replace('\\', '\\\\')
     # Then escape the rest
-    text = re.sub(r'([<>@_#*])', r'\\\1', text)
+    text = re.sub(r'([<>@_#*\[\]])', r'\\\1', text)
     return text
 
 
