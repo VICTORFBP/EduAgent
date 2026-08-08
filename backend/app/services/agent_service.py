@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 from openai import AsyncOpenAI
 from app.config import get_settings
 from app.services.agent_tools import TOOLS_SCHEMA, execute_tool
+from app.services.supabase_service import supabase_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -14,8 +15,10 @@ settings = get_settings()
 SYSTEM_PROMPT = """Eres EduAgent, un asistente pedagógico inteligente y amable diseñado para ayudar a los docentes rurales de la Institución Educativa El Crucero.
 
 Tienes acceso a las siguientes herramientas:
+- **buscar_en_internet**: busca información actualizada en internet sobre temas educativos, conceptos pedagógicos o ejemplos
 - **consultar_documentos**: busca en los documentos pedagógicos del MEN y del docente (lineamientos, guías curriculares, etc.)
 - **generar_planeacion**: crea una planeación curricular completa con objetivos, actividades y criterios de evaluación
+- **generar_actividad**: crea un taller, guía de trabajo o actividad impresa descargable para los estudiantes con ejercicios prácticos diferenciados
 - **listar_planeaciones**: muestra las planeaciones recientes del docente
 - **listar_estudiantes**: lista los estudiantes registrados
 - **ver_estadisticas**: muestra métricas y progreso del docente
@@ -24,11 +27,18 @@ Tienes acceso a las siguientes herramientas:
 
 Directrices:
 1. Usa las herramientas proactivamente cuando el docente lo necesite — no esperes a que te lo pidan explícitamente.
-2. Para generar planeaciones, si el docente no especifica algún campo (duracion, recursos), usa valores por defecto razonables.
+2. Para generar planeaciones (generar_planeacion):
+   - MANTÉN Y USA EL CONTEXTO PREVIO Y LOS MATERIALES ADJUNTOS. Si el docente adjuntó un documento o imagen de referencia, usa ese contenido e incluye sus `documento_ids` al invocar `generar_planeacion`.
+   - Si en la conversación previa se habló de un tema (ej: "fracciones", "geometría", "cuento"), deduce automáticamente:
+     * tema: El tema específico mencionado en los mensajes anteriores.
+     * area: La materia correspondiente. Comunes: "Matemáticas", "Lenguaje", "Ciencias Naturales", "Ciencias Sociales", "Ética", "Artística", "Inglés", "Tecnología e Informática", "Educación Física". Si el docente menciona otra materia diferente, úsala tal como la indica.
+     * grados: Los grados mencionados antes o un conjunto por defecto multigrado razonable como [1, 2, 3] o [3].
+   - No vuelvas a preguntar al docente por área, tema o grados si estos ya fueron mencionados o se pueden inferir del historial.
+   - Para duracion y recursos opcionales, usa valores por defecto razonables (ej. duracion=60, recursos="tablero y cuadernos").
 3. Responde siempre en español, con un tono cálido, profesional y motivador.
 4. Cuando presentes listas o resultados de herramientas, formatea la respuesta de manera clara y estructurada.
-5. Si necesitas más información para completar una tarea, pregunta de manera específica y concisa.
-6. No inventes información pedagógica — basa tus respuestas en los documentos cargados.
+5. Si el docente solicita "generarme una planeación" o "crear una clase" inmediatamente después de investigar o subir un archivo, INVOCA INMEDIATAMENTE la herramienta generar_planeacion usando la información investigada y adjunta.
+6. No inventes información pedagógica — basa tus respuestas en los documentos cargados y en las búsquedas realizadas.
 7. Para evaluaciones: cuando el docente pida ver evaluaciones, usa listar_evaluaciones. Cuando quiera calificar o corregir una nota, usa primero listar_evaluaciones para obtener el ID y luego calificar_evaluacion.
 """
 
@@ -46,6 +56,7 @@ class AgentService:
         docente_id: str,
         session_id: str | None = None,
         history: list[dict] | None = None,
+        documento_ids: list[str] | None = None,
     ) -> AsyncGenerator[str, None]:
         """
         Run the agent loop and yield SSE-formatted event strings.
@@ -61,13 +72,28 @@ class AgentService:
         # Build conversation history
         messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
         if history:
-            for h in history[-10:]:  # Keep last 10 turns for context window
+            for h in history[-20:]:  # Keep last 20 turns for context window
                 role = h.get("role")
                 content = h.get("content", "")
                 if role in ("user", "assistant") and content:
                     messages.append({"role": role, "content": content})
 
-        messages.append({"role": "user", "content": message})
+        # Process attached documents if provided
+        user_content = message
+        if documento_ids:
+            doc_context_blocks = []
+            for doc_id in documento_ids:
+                doc = await supabase_service.get_documento_by_id(doc_id)
+                if doc:
+                    doc_nombre = doc.get("nombre", "Material adjunto")
+                    doc_texto = doc.get("contenido_texto") or "(Contenido procesado vía OpenAI Files API)"
+                    doc_context_blocks.append(
+                        f"--- MATERIAL ADJUNTO (ID: {doc_id}) [{doc_nombre}] ---\n{doc_texto}"
+                    )
+            if doc_context_blocks:
+                user_content += "\n\n[MATERIALES ADJUNTADOS POR EL DOCENTE EN ESTE MENSAJE]:\n" + "\n\n".join(doc_context_blocks)
+
+        messages.append({"role": "user", "content": user_content})
 
         # ── Agent loop (max 5 iterations to prevent infinite tool calls) ──
         MAX_ITERATIONS = 5
@@ -133,6 +159,10 @@ class AgentService:
                     tool_args = json.loads(tool_call.function.arguments)
                 except json.JSONDecodeError:
                     tool_args = {}
+
+                # If user attached documentos in this turn, propagate them to generar_planeacion
+                if tool_name == "generar_planeacion" and documento_ids and not tool_args.get("documento_ids"):
+                    tool_args["documento_ids"] = documento_ids
 
                 # Emit tool_call event so frontend can show "using tool X..."
                 yield _sse("tool_call", {"name": tool_name, "arguments": tool_args})

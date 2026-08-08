@@ -8,7 +8,7 @@
 - Si no especificó nada, elige el formato más apropiado al tema.
 - NO impongas estructura rígida ni repitas modelos entre grados.
 - NO incluyas respuestas en `contenido_grados`.
-- **5 a 8 ítems** por grado con diferenciación real entre niveles.
+- **8 a 12 ítems** por grado con diferenciación real entre niveles y espacio suficiente para trabajar (llenando de 1.5 a 2 páginas).
 - **Estructura flexible**: Elige la cantidad y tipo de secciones según el tema. No sigas un patrón fijo.
 
 ## Tipos de ejercicio disponibles (elige los más apropiados)

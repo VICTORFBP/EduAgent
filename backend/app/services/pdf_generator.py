@@ -85,7 +85,7 @@ def _escape_str_arg(s: str) -> str:
 
 
 def _coerce_str(value: Any) -> str:
-    """Normalize any value to string."""
+    """Normalize any value to string, handling dicts and lists gracefully."""
     if value is None:
         return ""
     if isinstance(value, str):
@@ -95,7 +95,37 @@ def _coerce_str(value: Any) -> str:
     if isinstance(value, dict):
         if not value:
             return ""
-        lines = ["### Clave de Respuestas\n"]
+
+        # Check if dict is an activity content structure (e.g. {"instrucciones": ..., "preguntas": ...})
+        if "contenido" in value:
+            return _coerce_str(value["contenido"])
+        if "markdown" in value:
+            return _coerce_str(value["markdown"])
+        if "texto" in value:
+            return _coerce_str(value["texto"])
+
+        # If it contains "preguntas", "instrucciones" or "ejercicios" from an un-flattened AI response
+        parts = []
+        if "instrucciones" in value and isinstance(value["instrucciones"], str):
+            parts.append(value["instrucciones"])
+        if "preguntas" in value:
+            preguntas = value["preguntas"]
+            if isinstance(preguntas, list):
+                parts.append("\n\n".join(_coerce_str(p) for p in preguntas if p))
+            elif isinstance(preguntas, (str, dict)):
+                parts.append(_coerce_str(preguntas))
+        if "ejercicios" in value:
+            ejercicios = value["ejercicios"]
+            if isinstance(ejercicios, list):
+                parts.append("\n\n".join(_coerce_str(e) for e in ejercicios if e))
+            elif isinstance(ejercicios, (str, dict)):
+                parts.append(_coerce_str(ejercicios))
+
+        if parts:
+            return "\n\n".join(parts)
+
+        # Fallback for Q&A answer key dictionaries:
+        lines = []
         for k, v in value.items():
             key_label = f"Pregunta {k}" if str(k).isdigit() else str(k)
             if isinstance(v, dict):
@@ -784,7 +814,12 @@ class PdfGeneratorService:
         contenido_raw    = _coerce_str(
             contenido_grados.get(str(grado), contenido_grados.get(grado, ""))
         )
-        clave_raw        = _coerce_str(actividad.get("clave_respuestas", ""))
+        clave_dict = actividad.get("clave_respuestas", {})
+        if isinstance(clave_dict, dict):
+            clave_entry = clave_dict.get(str(grado), clave_dict.get(grado, clave_dict))
+            clave_raw   = _coerce_str(clave_entry)
+        else:
+            clave_raw   = _coerce_str(clave_dict)
 
         area_raw  = plan.get("area", "General")
         area_key  = _normalize_area(area_raw)

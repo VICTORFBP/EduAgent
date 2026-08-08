@@ -14,10 +14,10 @@ El sistema convierte automáticamente el Markdown estructurado a los componentes
 - Usa `**negrita**` y `*cursiva*` solo para énfasis real
 
 ## Densidad del contenido
-- El contenido debe llenar de manera natural al menos el 70% de la página
-- No incluyas saltos de línea vacíos consecutivos innecesarios
-- Adapta la cantidad de ejercicios a lo que solicite el docente. Si no se especifica, usa entre 5 y 8 ítems de actividad por grado.
-- Diferencia claramente el contenido de cada grado (no repitas ejercicios idénticos)
+- El contenido debe llenar de manera natural entre 1.5 y 2 páginas por grado (hojas de trabajo completas).
+- No incluyas saltos de línea vacíos consecutivos innecesarios.
+- Adapta la cantidad de ejercicios a lo que solicite el docente. Si no se especifica, genera entre 8 y 12 ítems de actividad por grado con sus respectivos espacios de respuesta (`[LINEAS:5]`, `> 🎨 DIBUJO`, etc.).
+- Diferencia claramente el contenido de cada grado (no repitas ejercicios idénticos).
 
 ## Separación de secciones
 - Separa secciones con `---` (línea horizontal)

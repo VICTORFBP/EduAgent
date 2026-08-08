@@ -62,6 +62,8 @@ def _get_skill_context(area: str, tipo_actividad: str | None = None) -> str:
         filename = "matematicas.md"
     elif "lenguaje" in area_lower or "castellano" in area_lower:
         filename = "lenguaje.md"
+    # Inglés, Tecnología, Educación Física, Ciencias, Ética, Artística → general.md
+    # general.md contains specific guidelines for each of these areas.
 
     filepath = os.path.join(skills_dir, filename)
     skill_content = "Genera el contenido en formato Markdown estructurado."
@@ -108,6 +110,14 @@ async def create_planeacion(
         rag_results = await rag_service.search_documents(rag_query, top_k=5)
         rag_context = "\n\n".join([r["content"] for r in rag_results]) if rag_results else None
 
+        # Web Research: investigación conceptual sobre el tema
+        research_context = await openai_service.research_topic(
+            area=request.area,
+            grados=request.grados,
+            tema=request.tema,
+        )
+
+        # 1. Generación de planeación
         result = await openai_service.generate_planeacion(
             area=request.area,
             grados=request.grados,
@@ -121,6 +131,15 @@ async def create_planeacion(
             skill_context=skill_context,
             reference_context=reference_context,
             rag_context=rag_context,
+            research_context=research_context,
+        )
+
+        # 2. Revisión y auditoría pedagógica antes de presentar/guardar
+        result = await openai_service.review_planeacion(
+            planeacion_result=result,
+            area=request.area,
+            grados=request.grados,
+            tema=request.tema,
         )
 
         # Add documento_ids to the result for persistence
@@ -227,6 +246,13 @@ async def _process_generar_actividad_bg(
             )
         reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
 
+        # Investigación conceptual previa
+        research_context = await openai_service.research_topic(
+            area=plan["area"],
+            grados=plan["grados"],
+            tema=plan["tema"],
+        )
+
         actividad = await openai_service.generate_actividad(
             area=plan["area"],
             grados=plan["grados"],
@@ -235,6 +261,7 @@ async def _process_generar_actividad_bg(
             tipo_actividad=plan.get("tipo_actividad"),
             skill_context=skill_context,
             reference_context=reference_context,
+            research_context=research_context,
         )
 
         # Save activity to planeacion
@@ -243,10 +270,15 @@ async def _process_generar_actividad_bg(
             {"actividad_generada": actividad}
         )
 
-        # Automatic Verification
+        # Automatic Verification and Review
         if actividad:
             try:
-                verified_actividad = await openai_service.verify_actividad(actividad)
+                verified_actividad = await openai_service.verify_actividad(
+                    actividad,
+                    tipo_actividad=plan.get("tipo_actividad"),
+                    area=plan["area"],
+                    tema=plan["tema"],
+                )
                 if verified_actividad and isinstance(verified_actividad, dict):
                     if "contenido_grados" in verified_actividad or "titulo" in verified_actividad:
                         await supabase_service.update_planeacion(

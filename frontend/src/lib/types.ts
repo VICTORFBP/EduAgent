@@ -116,12 +116,19 @@ export interface AgentToolCall {
   result?: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  nombre: string;
+  tipo?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   sources?: ChatSource[];
   tool_calls?: AgentToolCall[];
+  attachments?: ChatAttachment[];
   timestamp: string;
 }
 
@@ -183,6 +190,9 @@ export const AREAS = [
   "Ciencias Sociales",
   "Ética",
   "Artística",
+  "Inglés",
+  "Tecnología e Informática",
+  "Educación Física",
 ] as const;
 
 export type Area = (typeof AREAS)[number];
@@ -196,6 +206,9 @@ export const AREA_COLORS: Record<string, string> = {
   "Ciencias Sociales": "bg-purple-500/15 text-purple-600 dark:text-purple-400",
   "Ética": "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   "Artística": "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+  "Inglés": "bg-teal-500/15 text-teal-600 dark:text-teal-400",
+  "Tecnología e Informática": "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+  "Educación Física": "bg-red-500/15 text-red-600 dark:text-red-400",
 };
 
 export const AREA_ICONS: Record<string, string> = {
@@ -205,4 +218,7 @@ export const AREA_ICONS: Record<string, string> = {
   "Ciencias Sociales": "globe",
   "Ética": "heart",
   "Artística": "palette",
+  "Inglés": "languages",
+  "Tecnología e Informática": "monitor",
+  "Educación Física": "dumbbell",
 };

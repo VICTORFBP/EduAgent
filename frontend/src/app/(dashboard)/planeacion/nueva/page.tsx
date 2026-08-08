@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ import { toast } from "sonner";
 export default function NuevaPlaneacionPage() {
   const router = useRouter();
   const [area, setArea] = useState("");
+  const [customArea, setCustomArea] = useState("");
   const [grados, setGrados] = useState<number[]>([]);
   const [tema, setTema] = useState("");
   const [recursos, setRecursos] = useState("");
@@ -83,12 +85,15 @@ export default function NuevaPlaneacionPage() {
     });
   };
 
+  // Resolve the effective area: custom text when "otra" is selected, otherwise the dropdown value
+  const resolvedArea = area === "otra" ? customArea.trim() : area;
+
   const handleGenerate = async () => {
-    if (!area || grados.length === 0 || !tema.trim()) return;
+    if (!resolvedArea || grados.length === 0 || !tema.trim()) return;
 
     try {
       const result = await generatePlaneacion({
-        area,
+        area: resolvedArea,
         grados,
         tema,
         recursos,
@@ -102,7 +107,7 @@ export default function NuevaPlaneacionPage() {
     }
   };
 
-  const canGenerate = area && grados.length > 0 && tema.trim();
+  const canGenerate = resolvedArea && grados.length > 0 && tema.trim();
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
@@ -128,7 +133,11 @@ export default function NuevaPlaneacionPage() {
             {/* Área */}
             <div className="space-y-2">
               <Label htmlFor="area">Área</Label>
-              <Select value={area} onValueChange={(v) => v && setArea(v)}>
+              <Select value={area} onValueChange={(v) => {
+                if (!v) return;
+                setArea(v);
+                if (v !== "otra") setCustomArea("");
+              }}>
                 <SelectTrigger id="area" className="bg-white/5 border-white/10">
                   <SelectValue placeholder="Selecciona un área" />
                 </SelectTrigger>
@@ -136,8 +145,19 @@ export default function NuevaPlaneacionPage() {
                   {AREAS.map((a) => (
                     <SelectItem key={a} value={a}>{a}</SelectItem>
                   ))}
+                  <SelectItem value="otra" className="text-muted-foreground italic border-t mt-1 pt-1">Otra…</SelectItem>
                 </SelectContent>
               </Select>
+              {area === "otra" && (
+                <Input
+                  id="custom-area"
+                  placeholder="Escribe el nombre del área o materia"
+                  value={customArea}
+                  onChange={(e) => setCustomArea(e.target.value)}
+                  className="bg-white/5 border-white/10 mt-2"
+                  autoFocus
+                />
+              )}
             </div>
 
             {/* Grados */}

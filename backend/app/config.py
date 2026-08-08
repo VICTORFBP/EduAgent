@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     openai_generation_model: str = "gpt-4o-mini"
     openai_vision_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
+    openai_review_model: str = "gpt-4o-mini"
+    enable_web_research: bool = True
 
     # --- App ---
     cors_origins: str = "http://localhost:3000"

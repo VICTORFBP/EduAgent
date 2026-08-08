@@ -7,7 +7,7 @@ Este skill cubre las áreas que no tienen skill específico:
 
 - Combina análisis conceptual, preguntas cerradas y actividades prácticas adaptadas al contexto rural/multigrado de Colombia.
 - Deja espacios visibles para respuestas usando `[LINEAS:N]` o tablas.
-- **5–8 ítems** por grado con material solo para el estudiante en `contenido_grados`.
+- **8–12 ítems** por grado con material solo para el estudiante en `contenido_grados` (llenando de 1.5 a 2 páginas por grado).
 - Ajusta al `tipo_actividad` o instrucciones del docente cuando existan.
 - NO incluyas respuestas en `contenido_grados`.
 - Diferencia claramente el contenido de cada grado (no repitas ejercicios idénticos).
@@ -48,6 +48,25 @@ Este skill cubre las áreas que no tienen skill específico:
 - Incluye secuencias, algoritmos simples o diagramas de flujo adaptados al grado.
 - Usa `> 📝 ORDENAR` para secuencias algorítmicas.
 - Usa `> 🎨 DIBUJO` para diagramas de flujo o diseños de soluciones.
+
+### Inglés
+- Adapta el vocabulario y la complejidad gramatical al grado (grado 1-2: vocabulario básico y comandos simples; grado 3-5: oraciones completas y comprensión lectora).
+- Contextualiza en situaciones cotidianas del entorno rural colombiano (la tienda, la escuela, la familia, la finca).
+- Incluye actividades de listening/reading comprehension con instrucciones claras en español cuando sea necesario.
+- Usa `> 📖 FRAGMENTO` para textos cortos en inglés seguidos de preguntas de comprensión.
+- Usa `> 🧩 COMPLETAR` para ejercicios de vocabulario en contexto y fill-in-the-blank.
+- Usa `> 📋 RELACION` para conectar palabra en inglés con imagen/significado en español.
+- Incluye ejercicios de escritura guiada con `[LINEAS:3]` o `[LINEAS:5]`.
+
+### Educación Física
+- Describe actividades motrices con instrucciones claras, paso a paso.
+- Contextualiza en los espacios disponibles en escuelas rurales (cancha, patio, zonas verdes).
+- Incluye calentamiento, desarrollo y vuelta a la calma en la estructura.
+- Usa `> 📝 ORDENAR` para secuencias de ejercicios o pasos de un juego.
+- Usa `> 🎨 DIBUJO` para diagramas de canchas, posiciones o circuitos.
+- Usa `> 🔢 ESCALA` para autoevaluación de desempeño físico y actitudinal.
+- Los materiales deben ser accesibles (balones, lazos, aros, conos improvisados).
+
 
 ## Tipos de ejercicio disponibles (elige los más apropiados)
 

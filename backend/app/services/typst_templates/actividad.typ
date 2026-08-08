@@ -454,11 +454,11 @@
         #upper(titulo)
       ],
       [#set text(fill: rgb("#374151"), weight: "bold", size: 9pt); ESTUDIANTE],
-      [#box(width: 100%, stroke: (bottom: 0.6pt + rgb("#9ca3af")), inset: (bottom: 3pt))[]],
+      [],
       [#set text(fill: rgb("#374151"), weight: "bold", size: 9pt); GRADO],
       [#set text(weight: "bold", size: 9pt); #grado],
       [#set text(fill: rgb("#374151"), weight: "bold", size: 9pt); FECHA],
-      [#box(width: 100%, stroke: (bottom: 0.6pt + rgb("#9ca3af")), inset: (bottom: 3pt))[]],
+      [],
       [#set text(fill: rgb("#374151"), weight: "bold", size: 9pt); ÁREA],
       [#set text(size: 9pt); #area],
       [#set text(fill: rgb("#374151"), weight: "bold", size: 9pt); TEMA],

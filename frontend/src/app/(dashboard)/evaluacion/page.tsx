@@ -54,10 +54,11 @@ function getNotaColor(nota: number | null): string {
 
 export default function EvaluacionPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion, calificarManual } = useEvaluaciones();
+  const { evaluaciones, isLoading, deleteEvaluacion, retryEvaluacion, calificarManual, getArchivoUrl } = useEvaluaciones();
   const { estudiantes } = useEstudiantes();
   const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [selectedEvaluacion, setSelectedEvaluacion] = useState<Evaluacion | null>(null);
+  const [evalFileUrl, setEvalFileUrl] = useState<string | null>(null);
 
   // Manual grading state
   const [isManualGrading, setIsManualGrading] = useState(false);
@@ -78,11 +79,18 @@ export default function EvaluacionPage() {
     }
   };
 
-  const handleOpenModal = (ev: Evaluacion) => {
+  const handleOpenModal = async (ev: Evaluacion) => {
     setSelectedEvaluacion(ev);
     setIsManualGrading(false);
     setManualNota(ev.nota !== null ? String(ev.nota) : "");
     setManualFeedback(ev.retroalimentacion || "");
+    setEvalFileUrl(null);
+    try {
+      const url = await getArchivoUrl(ev.id);
+      setEvalFileUrl(url);
+    } catch {
+      setEvalFileUrl(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -210,7 +218,7 @@ export default function EvaluacionPage() {
                             </span>
                             <span className="text-xs text-amber-500 font-medium">Procesando</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">Gemini Vision</p>
+                          <p className="text-[10px] text-muted-foreground">GPT-4o Vision</p>
                         </div>
                       )}
                       
@@ -289,18 +297,18 @@ export default function EvaluacionPage() {
                   </div>
                   Evaluación de {selectedEvaluacion.estudiante_nombre || "Estudiante"}
                 </DialogTitle>
-                <DialogDescription className="flex items-center gap-2">
+                <DialogDescription className="flex items-center gap-2 flex-wrap">
                   <span>
                     {selectedEvaluacion.calificacion_manual
                       ? "Calificación asignada manualmente por el docente."
-                      : "Revisión detallada procesada por IA."}
+                      : "Revisión detallada procesada por GPT-4o Vision."}
                   </span>
                   {!selectedEvaluacion.estudiante_id && selectedEvaluacion.procesado_correctamente && (
                     <span className="text-amber-500 font-medium ml-2">⚠️ Estudiante sin identificar.</span>
                   )}
                   {selectedEvaluacion.calificacion_manual && selectedEvaluacion.nota_ia !== null && (
                     <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
-                      IA Corregida (Nota original: {selectedEvaluacion.nota_ia})
+                      IA Corregida (Nota original IA: {selectedEvaluacion.nota_ia})
                     </Badge>
                   )}
                 </DialogDescription>
@@ -309,13 +317,16 @@ export default function EvaluacionPage() {
               <div className="mt-4 space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center">
-                    <span className="text-sm text-muted-foreground mb-1">Nota Asignada</span>
+                    <span className="text-sm text-muted-foreground mb-1">Nota Definitiva</span>
                     {selectedEvaluacion.procesado_correctamente && selectedEvaluacion.nota !== null ? (
                       <span className={`text-4xl font-bold ${getNotaColor(Number(selectedEvaluacion.nota))}`}>
                         {Number(selectedEvaluacion.nota).toFixed(1)}
                       </span>
                     ) : (
                       <span className="text-xl font-semibold text-muted-foreground">N/A</span>
+                    )}
+                    {selectedEvaluacion.calificacion_manual && (
+                      <span className="text-[11px] text-blue-400 mt-1">Manual (Docente)</span>
                     )}
                   </div>
                   <div className="flex-1 space-y-2">
@@ -338,11 +349,41 @@ export default function EvaluacionPage() {
                   </div>
                 </div>
 
+                {/* Submission file preview if available */}
+                {evalFileUrl && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        📄 Entrega del Estudiante (Foto / PDF)
+                      </h4>
+                      <a
+                        href={evalFileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Abrir archivo original ↗
+                      </a>
+                    </div>
+                    <div className="bg-black/40 border border-white/10 rounded-xl p-2 flex justify-center max-h-56 overflow-hidden">
+                      <img
+                        src={evalFileUrl}
+                        alt="Entrega del estudiante"
+                        className="max-h-52 object-contain rounded"
+                        onError={(e) => {
+                          // In case it's a PDF, hide img or render preview fallback
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {selectedEvaluacion.retroalimentacion && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <ClipboardCheck className="w-4 h-4 text-primary" />
-                      Retroalimentación
+                      Retroalimentación Pedagógica
                     </h4>
                     <div className="bg-black/20 p-4 rounded-xl border border-white/5 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                       {selectedEvaluacion.retroalimentacion}

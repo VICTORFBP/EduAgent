@@ -17,6 +17,7 @@ from app.services.rag_service import rag_service
 from app.services.storage_service import storage_service, ALLOWED_DOCUMENT_MIMES
 from app.services.pdf_service import compress_pdf
 from app.services.text_extraction_service import text_extraction_service
+from app.services.openai_file_service import openai_file_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,11 +112,15 @@ async def upload_documento(
             file_bytes, filename, user_id, content_type
         )
 
-        # For DOCENTE_CUSTOM: extract text locally for direct reference
+        # For DOCENTE_CUSTOM: extract text locally and upload to OpenAI Files API
         contenido_texto = None
+        openai_file_id = None
         if not is_admin:
             contenido_texto = await text_extraction_service.extract_text(
                 file_bytes, content_type
+            )
+            openai_file_id = await openai_file_service.upload_file(
+                file_bytes, archivo.filename, content_type
             )
 
         doc_data = {
@@ -128,6 +133,7 @@ async def upload_documento(
             "grado": grado,
             "vectorizado": False,
             "contenido_texto": contenido_texto,
+            "openai_file_id": openai_file_id,
         }
         doc = await supabase_service.create_documento(doc_data)
 

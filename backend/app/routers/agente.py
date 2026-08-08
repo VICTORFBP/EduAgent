@@ -21,6 +21,10 @@ class AgentChatRequest(BaseModel):
         None,
         description="Historial de mensajes previos [{role: user|assistant, content: str}]",
     )
+    documento_ids: list[str] | None = Field(
+        None,
+        description="IDs de documentos o materiales adjuntados por el docente para esta consulta",
+    )
 
 
 @router.post("/chat")
@@ -49,6 +53,7 @@ async def agent_chat(
                 docente_id=docente_id,
                 session_id=request.session_id,
                 history=request.history,
+                documento_ids=request.documento_ids,
             ):
                 yield event
             exitoso = True

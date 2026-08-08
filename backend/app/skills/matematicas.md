@@ -9,7 +9,7 @@
 - **Contexto colombiano**: Adapta los problemas a entornos cotidianos (mercado, campo, escuela rural, tienda del barrio).
 - **Sin respuestas en contenido_grados**: Nunca incluyas la solución en la actividad del estudiante.
 - **Sin spoilers**: La introducción debe motivar, no explicar el concepto de antemano.
-- **Cantidad de ítems**: Adapta la cantidad a lo solicitado por el docente. Si no especifica cantidad, genera de 5 a 8 ítems evaluativos por grado, progresivos en dificultad.
+- **Cantidad de ítems**: Adapta la cantidad a lo solicitado por el docente. Si no especifica cantidad, genera entre 8 y 12 ítems evaluativos por grado, progresivos en dificultad y distribuidos en 3 o 4 secciones que llenen de 1.5 a 2 páginas por grado.
 - **Estructura flexible**: Elige la cantidad y tipo de secciones según el tema. No sigas un patrón fijo.
 
 ## Tipos de ejercicio disponibles (elige los más apropiados)

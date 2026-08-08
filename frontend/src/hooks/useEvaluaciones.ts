@@ -210,6 +210,22 @@ export function useEvaluaciones() {
     return result;
   }, []);
 
+  const getArchivoUrl = useCallback(async (evaluacionId: string): Promise<string | null> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+
+      const response = await fetch(`${API}/evaluacion/${evaluacionId}/archivo-url`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.url || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   return {
     evaluaciones,
     isLoading,
@@ -221,6 +237,7 @@ export function useEvaluaciones() {
     retryEvaluacion,
     calificarManual,
     skipIA,
+    getArchivoUrl,
     refresh: () => fetchEvaluaciones(),
   };
 }

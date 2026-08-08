@@ -375,6 +375,27 @@ async def get_evaluacion(
     return eval_data
 
 
+@router.get("/{evaluacion_id}/archivo-url")
+async def get_evaluacion_archivo_url(
+    evaluacion_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get a temporary signed URL to view or preview the uploaded student submission."""
+    eval_data = await supabase_service.get_evaluacion(evaluacion_id)
+    if not eval_data:
+        raise HTTPException(status_code=404, detail="Evaluación no encontrada")
+    if eval_data["docente_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación")
+        
+    archivo_path = eval_data.get("archivo_path")
+    if not archivo_path or "/" not in archivo_path:
+        raise HTTPException(status_code=404, detail="El archivo no tiene una ruta válida de almacenamiento")
+        
+    bucket, rel_path = archivo_path.split("/", 1)
+    signed_url = await storage_service.create_signed_url(bucket, rel_path, expires_in=3600)
+    return {"url": signed_url}
+
+
 @router.delete("/{evaluacion_id}")
 async def delete_evaluacion(
     evaluacion_id: str,

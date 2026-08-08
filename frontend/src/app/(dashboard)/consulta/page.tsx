@@ -8,7 +8,7 @@ import {
   Sparkles, AlertCircle, RefreshCw, Plus, Trash2,
   MessageSquare, Menu, X, Wrench, CheckCircle2,
   Loader2, BookOpen, BarChart3, Users, FileText,
-  ClipboardList, Mic
+  ClipboardList, Mic, Paperclip, Image as ImageIcon
 } from "lucide-react";
 import type { ChatMessage, AgentToolCall } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -251,6 +251,32 @@ export default function AgentePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedFileRef = useRef<File | null>(null);
+  useEffect(() => { selectedFileRef.current = selectedFile; }, [selectedFile]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!allowed.includes(file.type)) {
+      alert("Formato no permitido. Por favor sube un archivo PDF, JPG o PNG.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("El archivo supera el límite de 10 MB.");
+      return;
+    }
+    setSelectedFile(file);
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -332,30 +358,70 @@ export default function AgentePage() {
     setSidebarOpen(false);
   };
 
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
   /* SSE-based send message */
   const sendMessage = useCallback(async (question: string) => {
     if (!activeSessionId || !token) return;
     setError(null);
     setLastFailed(null);
 
+    let attachedDocs: { id: string; nombre: string }[] = [];
+    let docIdsToSend: string[] = [];
+
+    const fileToUpload = selectedFileRef.current;
+    if (fileToUpload) {
+      setIsUploadingFile(true);
+      try {
+        const formData = new FormData();
+        formData.append("nombre", fileToUpload.name);
+        formData.append("archivo", fileToUpload);
+
+        const uploadRes = await fetch(`${API_BASE}/documentos/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.json().catch(() => ({ detail: "Error al subir el archivo" }));
+          throw new Error(uploadErr.detail || "Error al subir el archivo");
+        }
+
+        const uploadedDoc = await uploadRes.json();
+        attachedDocs = [{ id: uploadedDoc.id, nombre: uploadedDoc.nombre }];
+        docIdsToSend = [uploadedDoc.id];
+      } catch (err: any) {
+        setIsUploadingFile(false);
+        setError(`No se pudo subir el archivo adjunto: ${err.message}`);
+        return;
+      } finally {
+        setIsUploadingFile(false);
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+
     const userMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       role: "user",
       content: question,
+      attachments: attachedDocs.length > 0 ? attachedDocs : undefined,
       timestamp: new Date().toISOString(),
     };
 
-    // Snapshot history before adding new user message (for API payload)
-    let historySnapshot: { role: string; content: string }[] = [];
-    setSessions(prev => {
-      const session = prev.find(s => s.id === activeSessionId);
-      if (session) {
-        historySnapshot = session.messages
-          .filter(m => m.role === "user" || m.role === "assistant")
-          .map(m => ({ role: m.role, content: m.content }));
-      }
-      return prev;
-    });
+    // Snapshot history before adding new user message (synchronously from ref)
+    const currentSession = sessionsRef.current.find(s => s.id === activeSessionId);
+    const historySnapshot = currentSession
+      ? currentSession.messages
+          .filter(m => (m.role === "user" || m.role === "assistant") && Boolean(m.content && m.content.trim()))
+          .map(m => ({ role: m.role, content: m.content }))
+      : [];
 
     patchSession(activeSessionId, s => ({
       ...s,
@@ -393,6 +459,7 @@ export default function AgentePage() {
           message: question,
           session_id: activeSessionId,
           history: historySnapshot,
+          documento_ids: docIdsToSend.length > 0 ? docIdsToSend : undefined,
         }),
       });
 
@@ -672,6 +739,17 @@ export default function AgentePage() {
                   {msg.role === "user" ? <User className="w-4 h-4 text-primary" /> : <Bot className="w-4 h-4 text-white" />}
                 </div>
                 <div className={`space-y-2 min-w-0 ${msg.role === "user" ? "items-end flex flex-col" : ""}`} style={{ maxWidth: "80%" }}>
+                  {/* Attachments */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1">
+                      {msg.attachments.map(att => (
+                        <div key={att.id} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl bg-primary/15 text-primary border border-primary/25 font-medium shadow-sm">
+                          <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate max-w-[200px]">{att.nombre}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {/* Tool calls */}
                   {msg.tool_calls && msg.tool_calls.length > 0 && (
                     <div className="space-y-1.5 w-full">
@@ -718,25 +796,72 @@ export default function AgentePage() {
 
           {/* Input */}
           <div className="border-t border-border p-4 bg-background/80 backdrop-blur-xl shrink-0">
+            {/* File attachment preview chip */}
+            {selectedFile && (
+              <div className="max-w-3xl mx-auto mb-2.5 flex items-center justify-between px-3 py-2 rounded-xl bg-primary/10 border border-primary/25 text-xs animate-fade-in">
+                <div className="flex items-center gap-2 text-primary font-medium truncate">
+                  {selectedFile.type === "application/pdf" ? (
+                    <FileText className="w-4 h-4 shrink-0 text-primary" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4 shrink-0 text-primary" />
+                  )}
+                  <span className="truncate">{selectedFile.name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeSelectedFile}
+                  className="p-1 hover:bg-primary/20 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <div className="max-w-3xl mx-auto flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg"
+                onChange={handleFileChange}
+                className="hidden"
+              />
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                disabled={isLoading}
-                placeholder={isLoading ? "El agente está procesando…" : "Pregunta algo o pide una acción…"}
+                disabled={isLoading || isUploadingFile}
+                placeholder={
+                  isUploadingFile
+                    ? "Subiendo archivo adjunto…"
+                    : isLoading
+                    ? "El agente está procesando…"
+                    : "Pregunta algo, pide una acción o adjunta un archivo (PDF, PNG, JPG)…"
+                }
                 className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 min-h-[44px] max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
                 rows={1}
               />
               <div className="flex gap-2 self-end shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  title="Adjuntar PDF o imagen (máx 10 MB)"
+                  disabled={isLoading || isUploadingFile}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`h-11 px-3 ${selectedFile ? "bg-primary/20 text-primary border-primary/40" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
                 <Button onClick={toggleListening} variant="outline" type="button" title="Dictado por voz"
                   className={`h-11 px-3 ${isListening ? "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20" : "text-muted-foreground hover:text-foreground"}`}>
                   <Mic className={`w-4 h-4 ${isListening ? "animate-pulse" : ""}`} />
                 </Button>
-                <Button onClick={handleSend} disabled={!input.trim() || isLoading}
+                <Button onClick={handleSend} disabled={(!input.trim() && !selectedFile) || isLoading || isUploadingFile}
                   className="gradient-primary text-white h-11 px-4 disabled:opacity-40">
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {isLoading || isUploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </Button>
               </div>
             </div>

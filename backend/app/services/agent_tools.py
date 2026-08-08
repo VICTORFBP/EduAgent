@@ -10,6 +10,27 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
+            "name": "buscar_en_internet",
+            "description": (
+                "Busca en internet información educativa actualizada, conceptos pedagógicos, "
+                "ejemplos o explicaciones temáticas. Úsala cuando la pregunta requiera datos recientes, "
+                "investigación sobre un tema pedagógico específico o información que no esté en los documentos locales."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {
+                        "type": "string",
+                        "description": "La consulta o tema a buscar en internet.",
+                    }
+                },
+                "required": ["consulta"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "consultar_documentos",
             "description": (
                 "Busca información en los documentos pedagógicos cargados en el sistema "
@@ -46,8 +67,7 @@ TOOLS_SCHEMA = [
                 "properties": {
                     "area": {
                         "type": "string",
-                        "description": "Área o materia.",
-                        "enum": ["Matemáticas", "Lenguaje", "Ciencias Naturales", "Ciencias Sociales", "Ética", "Artística"],
+                        "description": "Área o materia. Comunes: Matemáticas, Lenguaje, Ciencias Naturales, Ciencias Sociales, Ética, Artística, Inglés, Tecnología e Informática, Educación Física. También acepta cualquier otra materia que el docente indique.",
                     },
                     "grados": {
                         "type": "array",
@@ -70,6 +90,49 @@ TOOLS_SCHEMA = [
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "IDs de documentos propios del docente a usar como referencia directa.",
+                    },
+                },
+                "required": ["area", "grados", "tema"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generar_actividad",
+            "description": (
+                "Diseña y genera una guía de trabajo, taller práctico o actividad impresa descargable para los estudiantes, "
+                "diferenciada por grado, con ejercicios prácticos, lecturas, casillas de opción múltiple, tablas V/F y espacios de respuesta. "
+                "Úsala cuando el docente pida crear una actividad, taller, guía o ficha de trabajo para sus estudiantes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "area": {
+                        "type": "string",
+                        "description": "Área o materia (ej. Matemáticas, Lenguaje, Ciencias).",
+                    },
+                    "grados": {
+                        "type": "array",
+                        "items": {"type": "integer", "minimum": 1, "maximum": 5},
+                        "description": "Lista de grados (1 a 5).",
+                    },
+                    "tema": {
+                        "type": "string",
+                        "description": "Tema específico de la actividad.",
+                    },
+                    "tipo_actividad": {
+                        "type": "string",
+                        "description": "Instrucciones específicas del docente sobre qué incluir en la guía (ej. comprensión lectora, ejercicios de dibujo, V/F, etc.).",
+                    },
+                    "planeacion_id": {
+                        "type": "string",
+                        "description": "ID de la planeación vinculada si ya existe.",
+                    },
+                    "documento_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "IDs de materiales o documentos de referencia adjuntos.",
                     },
                 },
                 "required": ["area", "grados", "tema"],
@@ -188,6 +251,25 @@ TOOLS_SCHEMA = [
 ]
 
 
+async def _exec_buscar_en_internet(args: dict, docente_id: str, session_id: str | None) -> str:
+    from app.services.openai_service import openai_service
+
+    consulta = args.get("consulta", "")
+    if not consulta:
+        return "Por favor indica qué deseas buscar en internet."
+
+    try:
+        resultado = await openai_service.research_topic(
+            area="General",
+            grados=[1, 2, 3, 4, 5],
+            tema=consulta,
+        )
+        return resultado or f"No se encontró información suficiente en la web para la consulta '{consulta}'."
+    except Exception as e:
+        logger.error(f"buscar_en_internet error: {e}")
+        return f"No pude realizar la búsqueda en internet en este momento: {str(e)}"
+
+
 async def _exec_consultar_documentos(args: dict, docente_id: str, session_id: str | None) -> str:
     from app.services.openai_service import openai_service
     from app.services.rag_service import rag_service
@@ -236,12 +318,23 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
 
         # Resolve documento_ids → text for direct reference
         reference_context = None
+        doc_names = []
         if documento_ids:
             texts = await supabase_service.get_documentos_text_content(
                 docente_id, documento_ids
             )
             reference_context = "\n\n".join(texts) if texts else None
+            
+            # Get document names for the summary
+            for did in documento_ids:
+                doc_info = await supabase_service.get_documento_by_id(did)
+                if doc_info and doc_info.get("nombre"):
+                    doc_names.append(doc_info["nombre"])
 
+        # Web Research
+        research_context = await openai_service.research_topic(area, grados, tema)
+
+        # 1. Generación
         result = await openai_service.generate_planeacion(
             area=area,
             grados=grados,
@@ -252,10 +345,23 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
             skill_context=skill_context,
             reference_context=reference_context,
             rag_context=rag_context,
+            research_context=research_context,
+        )
+
+        # 2. Revisión y auditoría pedagógica
+        result = await openai_service.review_planeacion(
+            planeacion_result=result,
+            area=area,
+            grados=grados,
+            tema=tema,
         )
 
         saved_id = None
         try:
+            # Inject reference materials info into contenido_generado
+            if doc_names and isinstance(result.get("contenido_generado"), dict):
+                result["contenido_generado"]["materiales_referenciados"] = doc_names
+
             insert_data = {
                 "id": str(uuid.uuid4()),
                 "docente_id": docente_id,
@@ -271,14 +377,33 @@ async def _exec_generar_planeacion(args: dict, docente_id: str) -> str:
             }
             saved = await supabase_service.create_planeacion(insert_data)
             saved_id = saved.get("id")
+
+            # 3. Pre-generar taller/actividad descargable para el estudiante usando el material de referencia
+            try:
+                actividad_data = await openai_service.generate_actividad(
+                    area=area,
+                    grados=grados,
+                    tema=tema,
+                    contenido_generado=result["contenido_generado"],
+                    skill_context=skill_context,
+                    reference_context=reference_context,
+                    research_context=research_context,
+                )
+                if saved_id and actividad_data:
+                    await supabase_service.update_planeacion(saved_id, {"actividad_generada": actividad_data})
+                    logger.info(f"Actividad pre-generada y adjuntada a planeación {saved_id}")
+            except Exception as act_err:
+                logger.warning(f"No se pudo pre-generar la actividad descargable: {act_err}")
         except Exception as save_err:
             logger.warning(f"No se pudo guardar la planeación: {save_err}")
 
         resumen = [
-            f"✅ **Planeación generada** — **{area}**, Grado(s) {', '.join(str(g) for g in grados)}",
+            f"✅ **Planeación y Actividad Impresa Generadas** — **{area}**, Grado(s) {', '.join(str(g) for g in grados)}",
             f"📚 **Tema**: {tema}",
             f"⏱️ **Duración**: {duracion} min",
         ]
+        if doc_names:
+            resumen.append(f"📄 **Materiales de Referencia**: {', '.join(doc_names)}")
         if saved_id:
             resumen.append(f"💾 **Guardada** con ID: `{saved_id}`")
 
@@ -475,6 +600,66 @@ async def _exec_calificar_evaluacion(args: dict, docente_id: str) -> str:
         return f"No pude calificar la evaluación: {str(e)}"
 
 
+async def _exec_generar_actividad(args: dict, docente_id: str) -> str:
+    from app.services.openai_service import openai_service
+    from app.services.supabase_service import supabase_service
+    from app.routers.planeacion import _get_skill_context
+
+    area = args.get("area", "")
+    grados = args.get("grados", [])
+    tema = args.get("tema", "")
+    tipo_actividad = args.get("tipo_actividad")
+    documento_ids = args.get("documento_ids") or []
+    planeacion_id = args.get("planeacion_id")
+
+    try:
+        skill_context = _get_skill_context(area, tipo_actividad=tipo_actividad)
+
+        # Reference context from uploaded documents
+        reference_context = None
+        if documento_ids:
+            texts = await supabase_service.get_documentos_text_content(
+                docente_id, documento_ids
+            )
+            reference_context = "\n\n".join(texts) if texts else None
+
+        # Base planeación if provided
+        contenido_generado = {}
+        if planeacion_id:
+            plan = await supabase_service.get_planeacion(planeacion_id)
+            if plan:
+                contenido_generado = plan.get("contenido_generado", {})
+
+        # Research context
+        research_context = await openai_service.research_topic(area, grados, tema)
+
+        actividad_data = await openai_service.generate_actividad(
+            area=area,
+            grados=grados,
+            tema=tema,
+            contenido_generado=contenido_generado,
+            tipo_actividad=tipo_actividad,
+            skill_context=skill_context,
+            reference_context=reference_context,
+            research_context=research_context,
+        )
+
+        if planeacion_id:
+            await supabase_service.update_planeacion(planeacion_id, {"actividad_generada": actividad_data})
+
+        titulo = actividad_data.get("titulo", "Taller Práctico")
+        return (
+            f"✅ **Taller/Actividad Impresa Generada Exitosamente**\n"
+            f"📌 **Título**: {titulo}\n"
+            f"📚 **Área y Grados**: {area} (Grado(s) {', '.join(str(g) for g in grados)})\n"
+            f"📝 **Contenido**: Taller pedagógicamente estructurado y diferenciado por grado, con lecturas, casillas de opción múltiple, tablas de V/F, espacios de respuesta ([LINEAS]) e instrucciones para el estudiante.\n\n"
+            f"Puedes verla, descargarla o imprimirla en PDF ingresando al módulo de **Planeaciones**."
+        )
+    except Exception as e:
+        logger.error(f"generar_actividad error: {e}")
+        return f"No pude generar la actividad en este momento: {str(e)}"
+
+
 # ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 async def execute_tool(
@@ -485,8 +670,10 @@ async def execute_tool(
 ) -> str:
     """Dispatch a tool call to its executor and return a string result."""
     dispatch = {
+        "buscar_en_internet": lambda a: _exec_buscar_en_internet(a, docente_id, session_id),
         "consultar_documentos": lambda a: _exec_consultar_documentos(a, docente_id, session_id),
         "generar_planeacion": lambda a: _exec_generar_planeacion(a, docente_id),
+        "generar_actividad": lambda a: _exec_generar_actividad(a, docente_id),
         "listar_planeaciones": lambda a: _exec_listar_planeaciones(a, docente_id),
         "listar_estudiantes": lambda a: _exec_listar_estudiantes(a, docente_id),
         "ver_estadisticas": lambda a: _exec_ver_estadisticas(a, docente_id),

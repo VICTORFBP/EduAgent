@@ -58,6 +58,59 @@ class OpenAIService:
             self._client = AsyncOpenAI(api_key=settings.openai_api_key)
         return self._client
 
+    # ─── Investigación con Web Search ─────────────────────────────────────────
+
+    async def research_topic(self, area: str, grados: list[int], tema: str) -> str:
+        """
+        Investiga un tema pedagógico usando la herramienta de búsqueda web (OpenAI Web Search).
+        Retorna un resumen conceptual preciso para guiar la generación de la planeación y actividad.
+        """
+        if not settings.enable_web_research:
+            return ""
+
+        prompt = (
+            f"Investiga y sintetiza conceptos pedagógicos clave para la enseñanza del tema '{tema}' "
+            f"en el área de '{area}' para educación primaria (Grados: {', '.join(str(g) for g in grados)}).\n\n"
+            "Incluye:\n"
+            "1. Definición rigurosa y correcta del tema (evitando confusiones conceptuales comunes).\n"
+            "2. Ejemplos representativos y adecuados para educación primaria.\n"
+            "3. Errores o confusiones frecuentes que deben evitarse en las actividades.\n"
+            "Responde de forma concisa y directa en 2-3 párrafos."
+        )
+
+        # Intento con la Responses API
+        try:
+            if hasattr(self.client, "responses"):
+                response = await self.client.responses.create(
+                    model=settings.openai_generation_model,
+                    tools=[{"type": "web_search"}],
+                    input=prompt,
+                )
+                if hasattr(response, "output_text") and response.output_text:
+                    logger.info(f"Web research completada vía Responses API para tema '{tema}'")
+                    return response.output_text
+        except Exception as e:
+            logger.warning(f"Responses API web_search no disponible o falló: {e}")
+
+        # Fallback a Chat Completions
+        try:
+            response = await self.client.chat.completions.create(
+                model=settings.openai_generation_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente de investigación pedagógica especializado en educación primaria en Colombia."
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.2,
+                max_tokens=800,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            logger.warning(f"Fallback research_topic falló: {e}")
+            return ""
+
     # ─── Planeación Curricular ────────────────────────────────────────────────
 
     async def generate_planeacion(
@@ -74,9 +127,10 @@ class OpenAIService:
         skill_context: str | None = None,
         reference_context: str | None = None,
         rag_context: str | None = None,
+        research_context: str | None = None,
     ) -> dict:
         """
-        Generate a planeación curricular using OpenAI with RAG context.
+        Generate a planeación curricular using OpenAI with RAG and Research context.
         Replaces n8n's "EduAgent - Planeación Curricular (RAG)" workflow.
         """
         system_prompt = (
@@ -105,7 +159,7 @@ class OpenAIService:
             "Para fórmulas usa $...$ en strings JSON. Evita comandos LaTeX con backslash "
             "(\\sqrt, \\frac); prefiere notación legible: sqrt(36), 2^3, log_2(8). "
             "Nunca \\( \\) ni HTML en actividades.\n"
-            "Asegúrate de que las actividades sean prácticas y adecuadas para un contexto rural.\n"
+            "Asegúrate de que las actividades sean prácticas, conceptualmente rigurosas y adecuadas para un contexto rural.\n"
             "Responde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
         )
 
@@ -125,6 +179,12 @@ class OpenAIService:
 
         if tipo_actividad:
             user_prompt += f"\n\nInstrucciones específicas del docente:\n{tipo_actividad}"
+
+        if research_context:
+            user_prompt += (
+                f"\n\n--- Investigación conceptual previa sobre el tema ---\n"
+                f"{research_context}"
+            )
 
         if skill_context:
             user_prompt += f"\n\nInstrucciones de formato para esta área:\n{skill_context}"
@@ -166,6 +226,64 @@ class OpenAIService:
             "tokens_consumidos": response.usage.total_tokens if response.usage else 0,
         }
 
+    async def review_planeacion(
+        self,
+        planeacion_result: dict,
+        area: str,
+        grados: list[int],
+        tema: str,
+    ) -> dict:
+        """
+        Revisa y audita pedagógicamente una planeación generada antes de guardarla/presentarla.
+        Garantiza la exactitud conceptual y la coherencia del diseño curricular.
+        """
+        contenido = planeacion_result.get("contenido_generado", {})
+        if not contenido or not isinstance(contenido, dict):
+            return planeacion_result
+
+        system_prompt = (
+            "Eres un auditor pedagógico senior en Colombia, especializado en educación primaria y Escuela Nueva.\n"
+            "Tu tarea es REVISAR Y CORREGIR la planeación curricular en JSON generada por IA.\n\n"
+            "CRITERIOS DE REVISIÓN Y AUDITORÍA:\n"
+            "1. PRECISIÓN CONCEPTUAL DEL TEMA: Comprueba que el tema principal no haya sido confundido con otro concepto. "
+            "Por ejemplo, 'Contracciones gramaticales' debe tratar estrictamente sobre las contracciones 'al' y 'del', sin desviarse a conjugación verbal.\n"
+            "2. COHERENCIA INTERNA: El objetivo de aprendizaje, las actividades (apertura, desarrollo, cierre) y la evaluación deben corresponder exactamente entre sí.\n"
+            "3. PRESERVACIÓN DEL FORMATO JSON: La respuesta DEBE mantener la misma estructura JSON con las claves: "
+            "`objetivo`, `dba_citado`, `indicadores`, `actividades`, `diferenciacion`, `criterios_evaluacion`, `estandar_men`.\n\n"
+            "Si encuentras inconsistencias o desaciertos pedagógicos, CORRÍGELOS DIRECTAMENTE en el JSON.\n"
+            "Responde ÚNICAMENTE con el objeto JSON final corregido, sin bloques de código markdown."
+        )
+
+        user_prompt = (
+            f"Área: {area}\n"
+            f"Grados: {', '.join(str(g) for g in grados)}\n"
+            f"Tema solicitado: {tema}\n\n"
+            f"Planeación generada a auditar:\n"
+            f"{json.dumps(contenido, ensure_ascii=False)}"
+        )
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=settings.openai_review_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=4000,
+            )
+            raw_output = response.choices[0].message.content or ""
+            reviewed_contenido = _extract_json(raw_output)
+            if isinstance(reviewed_contenido, dict) and "actividades" in reviewed_contenido:
+                planeacion_result["contenido_generado"] = reviewed_contenido
+                if reviewed_contenido.get("dba_citado"):
+                    planeacion_result["dba_referenciados"] = [reviewed_contenido["dba_citado"]]
+                logger.info(f"Review de planeación completada exitosamente para tema '{tema}'")
+        except Exception as e:
+            logger.warning(f"Error en review_planeacion, conservando versión original: {e}")
+
+        return planeacion_result
+
     # ─── Generación de Actividad ──────────────────────────────────────────────
 
     async def generate_actividad(
@@ -177,45 +295,87 @@ class OpenAIService:
         tipo_actividad: str | None = None,
         skill_context: str | None = None,
         reference_context: str | None = None,
+        research_context: str | None = None,
     ) -> dict:
         """
         Generate an activity/worksheet from a planeación.
         Replaces n8n's "EduAgent - Generación de Actividad (AI)" workflow.
         """
+        grados_str = ", ".join(str(g) for g in grados)
         system_prompt = (
-            "Eres un generador de actividades evaluativas para la Escuela Rural Mixta El Crucero. "
-            "A partir de una planeación curricular, genera una actividad evaluativa completa.\n\n"
-            "La actividad debe tener la siguiente estructura JSON:\n"
+            "Eres un experto pedagógico y creador de material didáctico para la Escuela Rural Mixta El Crucero "
+            "(modelo Escuela Nueva de Colombia). Tu objetivo es diseñar actividades evaluativas y talleres "
+            "visuales, dinámicos, creativos y pedagógicamente rigurosos que NO parezcan plantillas genéricas.\n\n"
+            "🚨 REGLA DE ORO — MATERIAL DE REFERENCIA / ARCHIVOS ADJUNTOS:\n"
+            "Si se proporciona 'Material de referencia del docente' (texto o imagen extraída de un taller, guía, libro o libreta), "
+            "DEBES EXTRAER Y ADAPTAR DIRECTAMENTE LOS EJERCICIOS, PREGUNTAS, DIAGRAMAS Y CASOS DE LECTURA PRESENTES EN ESE MATERIAL. "
+            "No crees preguntas abstractas o genéricas cuando tengas un archivo adjunto: toma sus problemas reales, "
+            "sus lecturas o sus enunciados y transfórmalos en una guía impresa estructurada y diferenciada por grado.\n\n"
+            "🚨 REGLA DE ORO — PRECISIÓN CONCEPTUAL Y TEMÁTICA:\n"
+            "Cada uno de los ejercicios formulados DEBE ser conceptualmente correcto y alinearse ESTRICTAMENTE con el tema de la clase.\n"
+            "Ejemplo: Si el tema es 'Contracciones gramaticales', los ejercicios deben tratar EXCLUSIVAMENTE sobre las contracciones ('al', 'del') "
+            "y NO sobre verbos (soy/eres/tiene) u otros conceptos desacertados.\n\n"
+            "🚨 REGLA DE ORO — PRIORIDAD ABSOLUTA DEL DOCENTE (tipo_actividad):\n"
+            "Si se te proporcionan instrucciones específicas del docente (tipo_actividad), DEBES CUMPLIRLAS AL 100% DE FORMA OBLIGATORIA. "
+            "Por ejemplo:\n"
+            "- Si solicita un texto o lectura extensa ('2 páginas de lectura', 'historia larga', etc.), escribe un relato completo, narrativamente detallado, de varios párrafos dentro del bloque `> 📖 FRAGMENTO` (no hagas un resumen breve de un solo párrafo).\n"
+            "- Si solicita secciones específicas ('comprensión lectora', 'verdadero/falso', 'selección múltiple', 'espacio para dibujar', etc.), INCLÚYELAS TODAS obligatoriamente.\n"
+            "- Si solicita un tema o leyenda específica (ej. 'La leyenda del duende'), enfoca todo el contenido en esa temática.\n\n"
+            "REGLAS DE ESTRUCTURA Y FORMATO:\n"
+            "Responde ÚNICAMENTE con un objeto JSON conteniendo las claves `contenido_grados` y `clave_respuestas` SOLO para los grados solicitados: " + grados_str + ".\n"
+            "Formato JSON exacto:\n"
             "{\n"
-            '  "titulo": "Título descriptivo de la actividad",\n'
-            '  "area": "Área",\n'
-            '  "tema": "Tema",\n'
+            '  "titulo": "Título atractivo y contextualizado",\n'
+            f'  "area": "{area}",\n'
+            f'  "tema": "{tema}",\n'
+            '  "instrucciones": "Instrucciones claras para el estudiante",\n'
             '  "contenido_grados": {\n'
-            '    "3": {\n'
-            '      "instrucciones": "Instrucciones para este grado",\n'
-            '      "preguntas": [...],\n'
-            '      "clave_respuestas": {...}\n'
-            "    }\n"
-            "  }\n"
+            f'    "{grados[0]}": "Cadena de texto Markdown completa para grado {grados[0]}..."\n'
+            '  },\n'
+            '  "clave_respuestas": {\n'
+            f'    "{grados[0]}": "Solucionario detallado para el docente..."\n'
+            '  }\n'
             "}\n\n"
-            "Responde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown."
+            "CRÍTICO SOBRE `contenido_grados`:\n"
+            "1. Cada clave de grado DEBE ser una CADENA DE TEXTO MARKDOWN COMPLETA. NO uses objetos anidados como {\"preguntas\": [...]}.\n"
+            "2. Genera contenido ÚNICAMENTE para los grados indicados en la solicitud (" + grados_str + "). NO generes otros grados.\n"
+            "3. LONGITUD Y DENSIDAD: Genera una actividad rica y completa de entre 8 y 12 ítems o ejercicios distribuidos en secciones temáticas (1.5 a 2 páginas por grado).\n"
+            "4. ESPACIOS DE RESPUESTA: Toda pregunta abierta DEBE llevar `[LINEAS:4]` o `[LINEAS:5]` o `> 🎨 DIBUJO`.\n"
+            "5. COMPONENTES VISUALES: Usa `> 📖 FRAGMENTO`, `> 📦 RECUADRO`, `> 🎨 DIBUJO`, `> 📦 GRILLA`, `> 📋 RELACION`, `> 🧩 COMPLETAR`, `> 📝 ORDENAR`, `> ✏️ CORREGIR`, `> 🔢 ESCALA`, `[LINEAS:N]`, `A. [ ]`, `| Afirmación | V | F |<SALTO>`.\n"
+            "6. NO incluyas soluciones en `contenido_grados`; las respuestas van EXCLUSIVAMENTE en `clave_respuestas`.\n"
+            "7. En tablas Markdown (`|...|`), separa filas con `<SALTO>`. Toda notación matemática DEBE usar `$expresión$` o `$$expresión$$`.\n"
+            "Responde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown extra."
         )
 
-        user_prompt = (
-            f"Área: {area}\n"
-            f"Grados: {', '.join(str(g) for g in grados)}\n"
-            f"Tema: {tema}\n\n"
+        user_prompt_parts = [
+            f"Área: {area}",
+            f"Grados a generar: {grados_str}",
+            f"Tema: {tema}",
+        ]
+
+        if research_context:
+            user_prompt_parts.append(
+                f"--- Investigación conceptual previa sobre el tema ---\n{research_context}"
+            )
+
+        if tipo_actividad:
+            user_prompt_parts.append(
+                f"🚨🚨 INSTRUCCIONES ESPECÍFICAS Y REQUISITOS OBLIGATORIOS DEL DOCENTE:\n"
+                f"{tipo_actividad}\n"
+                f"(RECUERDA CUMPLIR TODAS ESTAS INSTRUCCIONES AL PIE DE LA LETRA: Si pide lectura de 2 páginas, genera un texto extenso y detallado; si pide secciones de dibujo, V/F, selección múltiple o comprensión lectora, inclúyelas TODAS)."
+            )
+
+        user_prompt_parts.append(
             f"Planeación base:\n{json.dumps(contenido_generado, ensure_ascii=False)}"
         )
 
-        if tipo_actividad:
-            user_prompt += f"\n\nTipo de actividad solicitado: {tipo_actividad}"
+        if reference_context:
+            user_prompt_parts.append(f"Material de referencia del docente:\n{reference_context}")
 
         if skill_context:
-            user_prompt += f"\n\nInstrucciones de formato:\n{skill_context}"
+            user_prompt_parts.append(f"Guía de componentes e instrucciones de formato:\n{skill_context}")
 
-        if reference_context:
-            user_prompt += f"\n\nMaterial de referencia del docente:\n{reference_context}"
+        user_prompt = "\n\n".join(user_prompt_parts)
 
         response = await self.client.chat.completions.create(
             model=settings.openai_generation_model,
@@ -223,50 +383,90 @@ class OpenAIService:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.4,
+            temperature=0.5,
             max_tokens=4000,
         )
 
         raw_output = response.choices[0].message.content or ""
         return _extract_json(raw_output)
 
-    # ─── Verificación de Actividad ────────────────────────────────────────────
+    # ─── Verificación y Revisión de Actividad ──────────────────────────────────
 
-    async def verify_actividad(self, actividad: dict) -> dict:
+    async def verify_actividad(
+        self,
+        actividad: dict,
+        tipo_actividad: str | None = None,
+        area: str | None = None,
+        tema: str | None = None,
+    ) -> dict:
         """
-        Verify and potentially correct an activity.
-        Replaces n8n's activity verification webhook.
+        Audita y corrige una actividad evaluativa/taller.
+        Efectúa revisión técnica de sintaxis y revisión de calidad/exactitud conceptual.
         """
         system_prompt = (
-            "Eres un verificador de actividades evaluativas. Revisa la actividad y "
-            "corrige cualquier error en:\n"
-            "- Formato JSON\n"
-            "- Coherencia de las preguntas con el tema y grado\n"
-            "- Claves de respuestas correctas\n"
-            "- Instrucciones claras\n\n"
-            "Si la actividad está correcta, devuélvela tal como está.\n"
-            "Si hay errores, corrígelos y devuelve la versión corregida.\n"
-            "Responde ÚNICAMENTE con el objeto JSON corregido."
+            "Eres un auditor pedagógico senior y especialista en control de calidad técnica para EduAgent.\n"
+            "Tu tarea es REVISAR Y CORREGIR rigurosamente el JSON de la actividad evaluativa/taller antes de entregarlo al docente.\n\n"
+            "CRITERIOS OBLIGATORIOS DE AUDITORÍA Y CORRECCIÓN:\n\n"
+            "1. PRECISIÓN CONCEPTUAL DEL TEMA:\n"
+            "   - Revisa CADA ejercicio en `contenido_grados`. Todos los ejercicios deben corresponder ESTRICTAMENTE al tema de la clase.\n"
+            "   - Ejemplo: Si el tema es 'Contracciones gramaticales', los ejercicios deben tratar sobre las contracciones en español ('al' = a + el, 'del' = de + el). Queda TOTALMENTE PROHIBIDO incluir ejercicios de conjugación verbal (soy/eres/tiene) u otros temas no relacionados.\n"
+            "   - Si un ejercicio es conceptualmente erróneo o irrelevante, REEMPLÁZALO por uno correcto y bien formulado sobre el tema.\n\n"
+            "2. CALIDAD DE PREGUNTAS Y OPCIONES:\n"
+            "   - En preguntas de selección múltiple (A, B, C, D), asegúrate de que TODAS las opciones tengan sentido y sean plausibles. Elimina opciones absurdas como '[ ] No puedo', 'Opción D', etc.\n"
+            "   - En ejercicios de completar (____), asegúrate de que las opciones sugeridas entre paréntesis sean distintas y correctas (ej. '(al / a el)', no '(soy/soy)').\n"
+            "   - Evita ejercicios redundantes o sin instrucciones claras.\n\n"
+            "3. ESTRUCTURA Y FORMATO TÉCNICO:\n"
+            "   - `contenido_grados` debe mapear cada grado ('1', '2', '3', etc.) a una CADENA DE MARKDOWN COMPLETA. NO uses diccionarios u objetos anidados.\n"
+            "   - Respeta las instrucciones del docente (si pide textos largos o secciones específicas).\n"
+            "   - Verifica la sintaxis de componentes visuales (`> 📖 FRAGMENTO`, `> 📦 GRILLA`, `[LINEAS:N]`, `> 🎨 DIBUJO`, `> 📋 RELACION`, etc.).\n"
+            "   - Asegúrate de que las soluciones estén EXCLUSIVAMENTE en `clave_respuestas` y NUNCA en `contenido_grados`.\n"
+            "   - En tablas Markdown `|...|`, separa filas con `<SALTO>`.\n"
+            "   - Toda notación matemática DEBE usar $...$ o $$...$$.\n\n"
+            "Devuelve ÚNICAMENTE el objeto JSON corregido, sin bloques de código markdown."
         )
 
-        response = await self.client.chat.completions.create(
-            model=settings.openai_generation_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": json.dumps(actividad, ensure_ascii=False)},
-            ],
-            temperature=0.1,
-            max_tokens=4000,
-        )
+        user_content_parts = [json.dumps(actividad, ensure_ascii=False)]
+        if area:
+            user_content_parts.append(f"Área: {area}")
+        if tema:
+            user_content_parts.append(f"Tema de la clase: {tema}")
+        if tipo_actividad:
+            user_content_parts.append(f"Instrucciones del docente:\n{tipo_actividad}")
 
-        raw_output = response.choices[0].message.content or ""
+        user_content = "\n\n".join(user_content_parts)
+
         try:
-            return _extract_json(raw_output)
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("Verification returned invalid JSON, keeping original")
+            response = await self.client.chat.completions.create(
+                model=settings.openai_review_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0.1,
+                max_tokens=4000,
+            )
+
+            raw_output = response.choices[0].message.content or ""
+            reviewed = _extract_json(raw_output)
+            if isinstance(reviewed, dict) and "contenido_grados" in reviewed:
+                logger.info("Auditoría y verificación de actividad completada exitosamente")
+                return reviewed
+            return actividad
+        except (json.JSONDecodeError, ValueError, Exception) as e:
+            logger.warning(f"Verification/Review returned invalid JSON, keeping original: {e}")
             return actividad
 
-    # ─── Evaluación con Vision (OCR) ──────────────────────────────────────────
+    async def review_actividad(
+        self,
+        actividad: dict,
+        tipo_actividad: str | None = None,
+        area: str | None = None,
+        tema: str | None = None,
+    ) -> dict:
+        """Alias de verify_actividad."""
+        return await self.verify_actividad(actividad, tipo_actividad=tipo_actividad, area=area, tema=tema)
+
+    # ─── Evaluación con Vision (OCR y Calificación Inteligente) ───────────────
 
     async def evaluate_with_vision(
         self,
@@ -276,21 +476,15 @@ class OpenAIService:
         is_url: bool = False,
     ) -> dict:
         """
-        Extract student answers from an evaluation image/PDF using GPT-4o Vision.
-        Replaces n8n's Gemini Vision OCR step.
-
-        Args:
-            image_data: file bytes or URL string
-            content_type: MIME type of the file
-            tipo: 'estandarizada' or 'abierta'
-            is_url: if True, image_data is a URL string
+        Extrae respuestas del estudiante y datos visuales de una imagen/PDF usando GPT-4o Vision.
         """
         if tipo == "estandarizada":
             ocr_prompt = (
-                "Eres un escáner óptico (OCR) muy estricto.\n"
-                "Esta es la Hoja de Respuestas de una prueba estandarizada de un estudiante.\n"
-                "Tu trabajo es extraer el nombre del estudiante y leer EXCLUSIVAMENTE los "
-                "círculos (A, B, C, D) que el estudiante ha marcado con lápiz/tinta para cada número.\n\n"
+                "Eres un evaluador y escáner óptico (OCR) docente de alta precisión.\n"
+                "Esta es la Hoja de Respuestas o prueba de un estudiante de educación primaria.\n"
+                "Tu tarea es:\n"
+                "1. Extraer el nombre del estudiante si está escrito en el encabezado.\n"
+                "2. Leer fielmente las opciones marcadas (A, B, C, D) para cada número de pregunta.\n\n"
                 "Retorna ÚNICAMENTE un JSON válido con este formato:\n"
                 "{\n"
                 '  "nombre_estudiante": "Nombre del estudiante si aparece escrito, sino null",\n'
@@ -298,24 +492,33 @@ class OpenAIService:
                 "    {\n"
                 '      "numero": "1",\n'
                 '      "opcion_marcada": "C",\n'
-                '      "descripcion_del_garabato_negro": "El círculo C tiene un rayón negro."\n'
+                '      "descripcion_del_garabato_negro": "Marcó la opción C"\n'
                 "    }\n"
                 "  ]\n"
                 "}\n"
-                "NO evalúes nada. Solo reporta el nombre y lo que rayó a mano."
             )
         else:
             ocr_prompt = (
-                "Eres un escáner óptico (OCR) muy estricto.\n"
-                "En este documento hay respuestas de un estudiante (procedimientos escritos "
-                "a mano, o tachones sobre opciones).\n"
-                'Si por error ves una hoja que dice "Clave del Docente", '
-                "¡TIENES PROHIBIDO LEERLA! Solo debes leer las respuestas del estudiante.\n\n"
-                "Retorna ÚNICAMENTE un JSON válido describiendo las respuestas del estudiante "
-                "y extrayendo su nombre."
+                "Eres un evaluador y transcriptor pedagógico de alta precisión para educación primaria.\n"
+                "En este documento hay respuestas manuscritas de un estudiante (procedimientos en lápiz/lapicero, "
+                "dibujos, textos, tablas o tachones en una guía o cuaderno).\n"
+                "Tu tarea es:\n"
+                "1. Extraer el nombre del estudiante si está escrito.\n"
+                "2. Transcribir de forma fiel y ordenada cada respuesta, procedimiento o cálculo que el estudiante escribió para cada pregunta o sección.\n"
+                "3. Indicar si alguna pregunta quedó en blanco o ilegible.\n\n"
+                "Retorna ÚNICAMENTE un JSON válido con este formato:\n"
+                "{\n"
+                '  "nombre_estudiante": "Nombre detectado o null",\n'
+                '  "respuestas_transcritas": [\n'
+                "    {\n"
+                '      "pregunta_num": "1",\n'
+                '      "respuesta_estudiante": "Texto o cálculo escrito a mano por el alumno...",\n'
+                '      "estado": "respondida | en_blanco | ilegible"\n'
+                "    }\n"
+                "  ]\n"
+                "}\n"
             )
 
-        # Build content for vision
         content: list[dict] = [{"type": "text", "text": ocr_prompt}]
 
         if is_url:
@@ -340,7 +543,6 @@ class OpenAIService:
         raw = response.choices[0].message.content or ""
         data = _extract_json(raw)
 
-        # Normalize array format for estandarizada
         if data.get("respuestas") and isinstance(data["respuestas"], list):
             respuestas_dict = {}
             for item in data["respuestas"]:
@@ -357,60 +559,58 @@ class OpenAIService:
         tipo: str,
         contexto_evaluacion: dict | None = None,
         estudiantes_lote: list[dict] | None = None,
+        image_url: str | None = None,
     ) -> dict:
         """
-        Grade a student's evaluation by comparing OCR results with answer key.
-        Replaces n8n's OpenAI evaluator chain step.
+        Califica la evaluación del estudiante comparando los datos visuales/manuscritos
+        directamente contra el Solucionario Docente (clave_respuestas) y los criterios de evaluación.
+        Retorna la nota calculada (0.0 a 10.0) y una retroalimentación pedagógica motivadora y detallada.
         """
         user_prompt = (
+            f"Eres un evaluador pedagógico experto de la Institución Educativa El Crucero.\n"
             f"Área: {area}\n"
             f"Tipo de evaluación: {tipo}\n\n"
-            f"Contexto de la evaluación (Incluye Clave de respuestas o Solucionario):\n"
+            f"--- SOLUCIONARIO DOCENTE Y CONTEXTO DE LA ACTIVIDAD ---\n"
             f"{json.dumps(contexto_evaluacion, ensure_ascii=False, indent=2) if contexto_evaluacion else 'No disponible'}\n\n"
-            f"Respuestas extraídas del estudiante (generadas por visión OCR):\n"
+            f"--- DATOS EXTRAÍDOS DE LA ENTREGA DEL ESTUDIANTE ---\n"
             f"{json.dumps(vision_data, ensure_ascii=False, indent=2)}\n\n"
         )
 
         if estudiantes_lote:
             user_prompt += (
-                f"LISTA DE ESTUDIANTES DEL LOTE:\n"
+                f"--- LISTA DE ESTUDIANTES REGISTRADOS EN EL CURSO ---\n"
                 f"{json.dumps(estudiantes_lote, ensure_ascii=False)}\n\n"
-                "La OCR extrajo el 'nombre_estudiante'. Identifica a qué estudiante de "
-                "la lista pertenece usando similitud de nombres y devuelve su 'estudiante_id'. "
-                "Si no logras identificarlo con seguridad, devuelve null.\n\n"
+                "Identifica a qué estudiante pertenece esta evaluación comparando el 'nombre_estudiante' detectado "
+                "con la lista oficial y devuelve su 'estudiante_id'. Si no coincide con ninguno con certeza, devuelve null.\n\n"
             )
 
         user_prompt += (
-            "INSTRUCCIONES:\n"
-            "Si es una prueba estandarizada (selección múltiple):\n"
-            "1. Compara ESTRICTAMENTE cada respuesta del estudiante con la clave_respuestas del contexto.\n"
-            "2. Calcula el total de correctas sobre el total de preguntas.\n"
-            "3. Calcula la nota de 1.0 a 10.0 proporcionalmente: 1 + (Correctas / Total) * 9.\n"
-            "4. Para la retroalimentación, enumera EXCLUSIVAMENTE las preguntas en las que el "
-            "estudiante FALLÓ (es decir, la opción marcada es diferente a la clave). "
-            "¡Cuidado! Si el estudiante marcó \"C\" y la clave era \"C\", eso es un ACIERTO "
-            "y NO debe incluirse en la lista de fallos.\n\n"
-            "Si es una evaluación abierta:\n"
-            "Evalúa los procedimientos, califica de 0 a 10 y justifica detalladamente "
-            "en la retroalimentación.\n\n"
+            "CRITERIOS DE CALIFICACIÓN Y RÚBRICA:\n"
+            "1. Si es PRUEBA ESTANDARIZADA (selección múltiple):\n"
+            "   - Compara cada respuesta del alumno con la 'clave_respuestas' del solucionario.\n"
+            "   - Calcula total de aciertos sobre total de preguntas.\n"
+            "   - Asigna nota de 1.0 a 10.0: Nota = 1.0 + (Aciertos / Total_Preguntas) * 9.0 (redondeada a 1 decimal).\n"
+            "   - En la retroalimentación, destaca cuántas preguntas acertó y explica de forma pedagógica y constructiva "
+            "los puntos donde falló (ej. 'En la pregunta 3 marcaste B, pero la respuesta correcta es C porque...').\n\n"
+            "2. Si es ACTIVIDAD ABIERTA / CUADERNO MANUSCRITO:\n"
+            "   - Evalúa procedimientos, coherencia, comprensión lectora, cálculos y esfuerzo pedagógico.\n"
+            "   - Califica en escala de 0.0 a 10.0 (considera aciertos parciales si el procedimiento matemático o la idea es correcta).\n"
+            "   - Estructura la retroalimentación en 3 partes claras:\n"
+            "     • 🌟 Aciertos y fortalezas demostradas.\n"
+            "     • 🔍 Preguntas o ejercicios a corregir/reforzar con su respectiva justificación.\n"
+            "     • 💡 Sugerencia motivadora para la próxima clase.\n\n"
             "Retorna ÚNICAMENTE un JSON válido con esta estructura:\n"
             "{\n"
-            '  "nota": 7.5,\n'
-            '  "retroalimentacion": "Tuviste X correctas de Y. Fallaste en la 1 '
-            '(marcaste A, era B) y en la 4 (marcaste D, era C)."'
+            '  "nota": 8.5,\n'
+            '  "retroalimentacion": "🌟 ¡Buen trabajo! Tuviste 4 de 5 respuestas correctas...\\n🔍 En el punto 3: ...\\n💡 Recomendación: ...",\n'
+            '  "estudiante_id": "uuid-si-aplica-o-null"\n'
+            "}"
         )
 
-        if estudiantes_lote:
-            user_prompt += ',\n  "estudiante_id": "uuid-del-estudiante"'
-
-        user_prompt += "\n}"
-
         response = await self.client.chat.completions.create(
-            model=settings.openai_vision_model,  # gpt-4o for grading accuracy
-            messages=[
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0,
+            model=settings.openai_vision_model,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.1,
             max_tokens=1500,
         )
 

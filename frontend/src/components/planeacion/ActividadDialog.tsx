@@ -280,7 +280,7 @@ export function ActividadDialog({
                     size="sm"
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
                   >
-                    Calificar con Gemini Vision
+                    Calificar con IA Vision
                   </Button>
                 </Link>
               </div>

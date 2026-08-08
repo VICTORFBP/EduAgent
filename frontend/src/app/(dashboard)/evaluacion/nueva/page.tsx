@@ -568,7 +568,7 @@ export default function NuevaEvaluacionPage() {
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 {modoLote && loteProgress 
                    ? `Procesando ${loteProgress.current} de ${loteProgress.total}...` 
-                   : "Procesando con Gemini Vision..."}
+                   : "Procesando con GPT-4o Vision..."}
               </>
             ) : (
               <>
