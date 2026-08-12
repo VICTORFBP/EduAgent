@@ -10,33 +10,14 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
-            "name": "buscar_en_internet",
-            "description": (
-                "Busca en internet información educativa actualizada, conceptos pedagógicos, "
-                "ejemplos o explicaciones temáticas. Úsala cuando la pregunta requiera datos recientes, "
-                "investigación sobre un tema pedagógico específico o información que no esté en los documentos locales."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "consulta": {
-                        "type": "string",
-                        "description": "La consulta o tema a buscar en internet.",
-                    }
-                },
-                "required": ["consulta"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "consultar_documentos",
             "description": (
-                "Busca información en los documentos pedagógicos cargados en el sistema "
-                "(lineamientos MEN, guías curriculares, documentos del docente). "
-                "Úsala para responder preguntas sobre contenido curricular, metodologías, "
-                "normatividad educativa, o cualquier tema relacionado con el material pedagógico."
+                "Busca información en la base de conocimiento pedagógica del sistema, que incluye "
+                "lineamientos del MEN, estándares básicos de competencias, DBA, modelos pedagógicos "
+                "(Escuela Nueva, aprendizaje significativo, multigrado, etc.), guías curriculares "
+                "y documentos cargados por el docente. Esta es la PRIMERA y principal fuente que debes "
+                "consultar para cualquier pregunta sobre pedagogía, currículo, metodologías educativas, "
+                "normatividad o contenido disciplinar."
             ),
             "parameters": {
                 "type": "object",
@@ -47,6 +28,28 @@ TOOLS_SCHEMA = [
                     }
                 },
                 "required": ["pregunta"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_en_internet",
+            "description": (
+                "Busca en internet información complementaria o de actualidad. "
+                "Úsala SOLO cuando: (1) consultar_documentos no arrojó información suficiente, "
+                "(2) el docente pide explícitamente buscar en internet, o "
+                "(3) la pregunta trata sobre noticias, datos de actualidad o normativas recientes que no estén en los documentos curriculares."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {
+                        "type": "string",
+                        "description": "La consulta o tema a buscar en internet.",
+                    }
+                },
+                "required": ["consulta"],
             },
         },
     },
@@ -101,16 +104,17 @@ TOOLS_SCHEMA = [
         "function": {
             "name": "generar_actividad",
             "description": (
-                "Diseña y genera una guía de trabajo, taller práctico o actividad impresa descargable para los estudiantes, "
-                "diferenciada por grado, con ejercicios prácticos, lecturas, casillas de opción múltiple, tablas V/F y espacios de respuesta. "
-                "Úsala cuando el docente pida crear una actividad, taller, guía o ficha de trabajo para sus estudiantes."
+                "Diseña y genera una guía de trabajo, taller práctico o prueba estandarizada tipo ICFES / SABER / selección múltiple descargable en PDF para los estudiantes, "
+                "diferenciada por grado, con ejercicios prácticos, lecturas, casillas de opción múltiple (A, B, C, D), tablas V/F, hoja de respuestas y solucionario docente. "
+                "Funciona tanto con materiales adjuntos (PDFs o imágenes de talleres/libretas) como a partir de los DBA y estándares del MEN (RAG). "
+                "Úsala cuando el docente pida crear una actividad, taller, guía, prueba ICFES, examen o simulacro para sus estudiantes."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "area": {
                         "type": "string",
-                        "description": "Área o materia (ej. Matemáticas, Lenguaje, Ciencias).",
+                        "description": "Área o materia (ej. Matemáticas, Lenguaje, Ciencias Naturales, Ciencias Sociales, Inglés, etc.).",
                     },
                     "grados": {
                         "type": "array",
@@ -119,11 +123,11 @@ TOOLS_SCHEMA = [
                     },
                     "tema": {
                         "type": "string",
-                        "description": "Tema específico de la actividad.",
+                        "description": "Tema específico de la actividad o prueba.",
                     },
                     "tipo_actividad": {
                         "type": "string",
-                        "description": "Instrucciones específicas del docente sobre qué incluir en la guía (ej. comprensión lectora, ejercicios de dibujo, V/F, etc.).",
+                        "description": "Instrucciones específicas del docente sobre qué incluir en la guía o prueba. Si el docente pide prueba tipo ICFES, Saber, simulacro o selección múltiple con opciones A, B, C, D y hoja de respuestas, indícalo aquí (ej. 'Prueba estandarizada tipo ICFES / Saber con 15 preguntas de selección múltiple A, B, C, D y clave de respuestas').",
                     },
                     "planeacion_id": {
                         "type": "string",
@@ -603,7 +607,8 @@ async def _exec_calificar_evaluacion(args: dict, docente_id: str) -> str:
 async def _exec_generar_actividad(args: dict, docente_id: str) -> str:
     from app.services.openai_service import openai_service
     from app.services.supabase_service import supabase_service
-    from app.routers.planeacion import _get_skill_context
+    from app.routers.planeacion import _get_skill_context, _is_prueba_estandarizada
+    import uuid
 
     area = args.get("area", "")
     grados = args.get("grados", [])
@@ -617,11 +622,16 @@ async def _exec_generar_actividad(args: dict, docente_id: str) -> str:
 
         # Reference context from uploaded documents
         reference_context = None
+        doc_names = []
         if documento_ids:
             texts = await supabase_service.get_documentos_text_content(
                 docente_id, documento_ids
             )
             reference_context = "\n\n".join(texts) if texts else None
+            for did in documento_ids:
+                doc_info = await supabase_service.get_documento_by_id(did)
+                if doc_info and doc_info.get("nombre"):
+                    doc_names.append(doc_info["nombre"])
 
         # Base planeación if provided
         contenido_generado = {}
@@ -644,17 +654,78 @@ async def _exec_generar_actividad(args: dict, docente_id: str) -> str:
             research_context=research_context,
         )
 
-        if planeacion_id:
-            await supabase_service.update_planeacion(planeacion_id, {"actividad_generada": actividad_data})
+        # Audit / verify activity quality, lint Markdown and test Typst compilation
+        try:
+            actividad_data = await openai_service.verify_actividad(
+                actividad=actividad_data,
+                tipo_actividad=tipo_actividad,
+                area=area,
+                tema=tema,
+                grados=grados,
+                plan={"area": area, "tema": tema, "tipo_actividad": tipo_actividad, "grados": grados},
+            )
+        except Exception as v_err:
+            logger.warning(f"Verification fallback for actividad: {v_err}")
 
-        titulo = actividad_data.get("titulo", "Taller Práctico")
-        return (
-            f"✅ **Taller/Actividad Impresa Generada Exitosamente**\n"
-            f"📌 **Título**: {titulo}\n"
-            f"📚 **Área y Grados**: {area} (Grado(s) {', '.join(str(g) for g in grados)})\n"
-            f"📝 **Contenido**: Taller pedagógicamente estructurado y diferenciado por grado, con lecturas, casillas de opción múltiple, tablas de V/F, espacios de respuesta ([LINEAS]) e instrucciones para el estudiante.\n\n"
-            f"Puedes verla, descargarla o imprimirla en PDF ingresando al módulo de **Planeaciones**."
-        )
+        # Persist to database so teacher can view and download PDF immediately
+        saved_plan_id = planeacion_id
+        if not saved_plan_id:
+            try:
+                insert_data = {
+                    "id": str(uuid.uuid4()),
+                    "docente_id": docente_id,
+                    "area": area,
+                    "grados": grados,
+                    "tema": tema,
+                    "tipo_actividad": tipo_actividad,
+                    "contenido_generado": {
+                        "objetivo": f"Actividad/Prueba pedagógica sobre {tema}",
+                        "materiales_referenciados": doc_names if doc_names else None,
+                    },
+                    "actividad_generada": actividad_data,
+                    "dba_referenciados": [],
+                    "agente_usado": "EduAgent-AI",
+                    "tokens_consumidos": 0,
+                    "validada_docente": False,
+                }
+                saved = await supabase_service.create_planeacion(insert_data)
+                saved_plan_id = saved.get("id")
+            except Exception as save_err:
+                logger.warning(f"Could not auto-create planeacion for activity: {save_err}")
+        else:
+            await supabase_service.update_planeacion(
+                planeacion_id,
+                {"actividad_generada": actividad_data, "tipo_actividad": tipo_actividad}
+            )
+
+        titulo = actividad_data.get("titulo", "Actividad Pedagógica")
+        is_prueba = _is_prueba_estandarizada(tipo_actividad) or _is_prueba_estandarizada(titulo)
+
+        tipo_label = "Prueba Estandarizada tipo ICFES / SABER" if is_prueba else "Taller / Guía de Trabajo"
+
+        resumen = [
+            f"✅ **{tipo_label} Generada Exitosamente**",
+            f"📌 **Título**: {titulo}",
+            f"📚 **Área y Grados**: {area} (Grado(s) {', '.join(str(g) for g in grados)})",
+        ]
+        if doc_names:
+            resumen.append(f"📄 **Material de Referencia Usado**: {', '.join(doc_names)}")
+        else:
+            resumen.append(f"🧠 **Generado con**: Lineamientos DBA y RAG pedagógico")
+
+        if is_prueba:
+            resumen.append(
+                "📝 **Formato**: Preguntas de opción múltiple (A, B, C, D) agrupadas por competencias, con hoja de respuestas tipo burbuja y solucionario docente oficial."
+            )
+        else:
+            resumen.append(
+                "📝 **Formato**: Taller práctico diferenciado por grado, con ejercicios aplicados, lecturas y espacios de respuesta."
+            )
+
+        if saved_plan_id:
+            resumen.append(f"\n💾 Guardada y disponible en el módulo de **Planeaciones** para previsualizar, imprimir o descargar en PDF (versión estudiante y docente).")
+
+        return "\n".join(resumen)
     except Exception as e:
         logger.error(f"generar_actividad error: {e}")
         return f"No pude generar la actividad en este momento: {str(e)}"

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -60,8 +61,15 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl gradient-primary shrink-0">
-          <GraduationCap className="w-5 h-5 text-white" />
+        <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-sm shadow-primary/20 shrink-0 border border-border/40">
+          <Image
+            src="/logo.png"
+            alt="EduAgent Logo"
+            width={36}
+            height={36}
+            className="w-full h-full object-cover"
+            priority
+          />
         </div>
         {!collapsed && (
           <div className="animate-fade-in">

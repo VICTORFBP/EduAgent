@@ -67,11 +67,22 @@ export function ActividadDialog({
   const actividad = plan.actividad_generada;
   const actividadGrades = actividad ? getActividadGradesWithContent(plan) : [];
 
-  // Detect prueba estandarizada by tipo_actividad field
+  // Detect prueba estandarizada by tipo_actividad, titulo, or content
   const isPruebaEstandarizada = (() => {
-    const tipo = (plan as any).tipo_actividad ?? "";
-    const t = tipo.toLowerCase();
-    return t.includes("prueba") && t.includes("estandar");
+    const tipo = ((plan as any).tipo_actividad ?? "").toLowerCase();
+    const titulo = (actividad?.titulo ?? "").toLowerCase();
+    const keywords = [
+      "icfes",
+      "saber",
+      "estandar",
+      "estándar",
+      "seleccion multiple",
+      "selección múltiple",
+      "opcion multiple",
+      "opción múltiple",
+      "simulacro",
+    ];
+    return keywords.some((kw) => tipo.includes(kw) || titulo.includes(kw));
   })();
 
   // Build the PDF url based on activity type

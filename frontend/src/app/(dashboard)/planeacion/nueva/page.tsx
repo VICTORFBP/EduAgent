@@ -219,8 +219,8 @@ export default function NuevaPlaneacionPage() {
                   { label: "Taller abierto", value: "" },
                   { label: "Selección múltiple", value: "Preguntas de selección múltiple con 4 opciones A B C D." },
                   {
-                    label: "📋 Prueba Estandarizada",
-                    value: "prueba estandarizada — selección múltiple tipo SABER, entre 15 y 20 preguntas con 4 opciones A B C D, organizadas por competencias.",
+                    label: "📋 Prueba Tipo ICFES / SABER",
+                    value: "Prueba estandarizada tipo ICFES / SABER — preguntas de selección múltiple con 4 opciones (A, B, C, D), organizadas por competencias y con clave de respuestas.",
                   },
                   { label: "V/F + Selección", value: "Preguntas de verdadero/falso y selección múltiple." },
                   { label: "Resolución de problemas", value: "Ejercicios de resolución de problemas con espacio para el procedimiento." },

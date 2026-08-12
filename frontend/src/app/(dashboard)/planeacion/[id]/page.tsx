@@ -229,7 +229,7 @@ export default function PlaneacionDetailPage({
               setIsActividadDialogOpen(true);
               setIsGeneratingActividad(false);
               toast.success("Actividad evaluativa generada con éxito");
-            } else if (attempts > 40) { // Timeout after 2 minutes
+            } else if (attempts > 100) { // Timeout after 5 minutes
               if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
               setIsGeneratingActividad(false);
               toast.error("La generación tomó demasiado tiempo. Intenta recargar la página más tarde.");

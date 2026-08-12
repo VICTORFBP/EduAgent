@@ -157,6 +157,8 @@ Presenta dos columnas que el estudiante debe conectar con flechas.
 
 Cada ítem va en su propia línea con `> `. La primera línea después de `RELACION` es el título de las columnas (separadas por `↔`). Las siguientes líneas tienen el par separado por `|`.
 
+**IMPORTANTE**: Las descripciones del lado derecho se reordenan automáticamente al generar el PDF, así que escríbelas emparejadas correctamente (el sistema las desordena para el estudiante).
+
 ---
 
 ## Texto con espacios para completar (Cloze / Llenar huecos)
@@ -189,6 +191,8 @@ Para actividades donde el estudiante debe poner elementos en el orden correcto (
 ```
 
 Se renderiza como una lista con recuadros vacíos numerables donde el estudiante escribe el orden.
+
+**IMPORTANTE**: Los ítems se presentan desordenados automáticamente en el PDF generado para que el estudiante los ordene. Escríbelos sin numeración (1., 2., 3...) cada uno en su propia línea con `> `. Tampoco uses sublistas markdown (`- item`).
 
 ---
 

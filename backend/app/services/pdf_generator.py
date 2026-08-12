@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import re
 import asyncio
 import uuid
@@ -48,6 +49,34 @@ _AREA_KEY_MAP = {
 
 def _normalize_area(area: str) -> str:
     return _AREA_KEY_MAP.get(area.strip().lower(), area)
+
+
+def _is_prueba_estandarizada(tipo_actividad: str | None) -> bool:
+    """Check if the requested activity is a standardized multiple-choice test (ICFES/Saber)."""
+    if not tipo_actividad:
+        return False
+    tipo_lower = str(tipo_actividad).lower()
+    keywords = [
+        "icfes",
+        "saber",
+        "estandar",
+        "estándar",
+        "seleccion multiple",
+        "selección múltiple",
+        "opcion multiple",
+        "opción múltiple",
+        "simulacro",
+        "omr",
+        "hoja de respuestas",
+        "test estandarizado",
+        "prueba estandarizada",
+        "evaluacion estandarizada",
+        "evaluación estandarizada",
+        "tipo saber",
+        "tipo icfes",
+    ]
+    return any(kw in tipo_lower for kw in keywords)
+
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +231,14 @@ def _preprocess_special_marks(text: str) -> str:
         r'\[LINEAS:(\d+)\]',
         lambda m: f'\x00LINEAS:{m.group(1)}\x00',
         text
+    )
+    # Normalize long underscores inside blockquote lines to triple ___ (for COMPLETAR blanks)
+    # Must run BEFORE the generic _{4,} -> LINEAS conversion below
+    text = re.sub(
+        r'^(\s*>\s.*)_{4,}',
+        lambda m: re.sub(r'_{4,}', '___', m.group(0)),
+        text,
+        flags=re.MULTILINE,
     )
     # 4+ underscores on their own line -> Espacio para resolver
     text = re.sub(
@@ -500,19 +537,29 @@ class TypstRenderer(mistune.BaseRenderer):
                 parts = rest_lines[0].split('↔')
                 col_titles = [p.strip() for p in parts[:2]]
                 data_lines = rest_lines[1:]
-            pares = []
+            left_items = []
+            right_items = []
             for ln in data_lines:
                 ln = ln.strip()
                 if not ln:
                     continue
                 if '|' in ln:
                     pair_parts = ln.split('|', 1)
-                    pares.append((
-                        f'[{_escape_plain_text(pair_parts[0].strip())}]',
-                        f'[{_escape_plain_text(pair_parts[1].strip())}]'
-                    ))
+                    left_items.append(f'[{_escape_plain_text(pair_parts[0].strip())}]')
+                    right_items.append(f'[{_escape_plain_text(pair_parts[1].strip())}]')
                 else:
-                    pares.append((f'[{_escape_plain_text(ln)}]', '[]'))
+                    left_items.append(f'[{_escape_plain_text(ln)}]')
+                    right_items.append('[]')
+            # Shuffle the right column so the exercise is not trivially solved
+            if len(right_items) > 1:
+                shuffled = right_items[:]
+                # Ensure at least one position changes
+                for _ in range(10):
+                    random.shuffle(shuffled)
+                    if shuffled != right_items:
+                        break
+                right_items = shuffled
+            pares = list(zip(left_items, right_items))
             pares_typst = ',\n  '.join(f'({p[0]}, {p[1]})' for p in pares)
             return (
                 f'#relacion('
@@ -526,6 +573,8 @@ class TypstRenderer(mistune.BaseRenderer):
                 r'(?i)^[\U0001f9e9\s]*COMPLETAR\s*[:\-]?\s*', '', first
             ).strip()
             inner = "\n".join(p for p in [body_first, rest_text] if p)
+            # Replace escaped (\_\_\_) and raw (___) underscores with inline blank marker
+            inner = re.sub(r'(\\_){3,}|_{3,}', '#espacio-completar()', inner)
             return f'#completar-texto[\n{inner}\n]\n\n'
 
         if 'ORDENAR' in first_upper or '\U0001f4dd' in first:
@@ -541,7 +590,20 @@ class TypstRenderer(mistune.BaseRenderer):
                 data_lines_ord = rest_lines[1:]
             items_ord = [l.strip() for l in data_lines_ord if l.strip()]
             if items_ord:
-                items_typst = ',\n  '.join(f'[{_escape_plain_text(i)}]' for i in items_ord)
+                # Clean any leading numbers (e.g. "1. ", "1) ", "1- ")
+                cleaned_items = [re.sub(r'^\d+[\.\-\)]\s*', '', i).strip() for i in items_ord]
+                cleaned_items = [i for i in cleaned_items if i]
+
+                # Shuffle items so they are presented out of order for the student
+                if len(cleaned_items) > 1:
+                    shuffled = cleaned_items[:]
+                    for _ in range(10):
+                        random.shuffle(shuffled)
+                        if shuffled != cleaned_items:
+                            break
+                    cleaned_items = shuffled
+
+                items_typst = ',\n  '.join(f'[{_escape_plain_text(i)}]' for i in cleaned_items)
                 instr_esc = instruccion or 'Ordena los siguientes elementos:'
                 return (
                     f'#ordenar(instruccion: [{instr_esc}], '
@@ -586,7 +648,8 @@ class TypstRenderer(mistune.BaseRenderer):
     def _collect_blockquote_lines(self, token: dict) -> List[str]:
         """
         Extract text lines from a blockquote.
-        mistune puts all blockquote content in paragraphs with softbreaks.
+        mistune puts blockquote content in paragraphs with softbreaks,
+        and numbered items (e.g. `> 1. Item`) as list tokens.
         """
         lines: List[str] = []
         for child in token.get("children", []):
@@ -613,6 +676,26 @@ class TypstRenderer(mistune.BaseRenderer):
                         seg.append(f"_{inner}_")
                 if seg:
                     lines.append("".join(seg))
+            elif child["type"] == "list":
+                # Extract list items as plain text lines (handles `> 1. Item` patterns)
+                for list_item in child.get("children", []):
+                    if list_item["type"] == "list_item":
+                        for sub in list_item.get("children", []):
+                            if sub["type"] in ("block_text", "paragraph"):
+                                item_parts: List[str] = []
+                                for inline in sub.get("children", []):
+                                    if inline["type"] == "text":
+                                        item_parts.append(self._process_raw(inline.get("raw", "")))
+                                    elif inline["type"] == "strong":
+                                        inner = "".join(
+                                            self._process_raw(n.get("raw", ""))
+                                            for n in inline.get("children", [])
+                                            if n["type"] == "text"
+                                        )
+                                        item_parts.append(f"*{inner}*")
+                                item_text = "".join(item_parts).strip()
+                                if item_text:
+                                    lines.append(item_text)
         return lines
 
     def list(self, token: dict, state) -> str:
@@ -841,7 +924,7 @@ class PdfGeneratorService:
             f'#import "{self._TEMPLATE_IMPORT}": conf, recuadro, fragmento-lectura, '
             f'lineas-respuesta, grilla, opcion, seccion-clave, bloque-instrucciones, '
             f'dibujo, tabla-formato, caja-respuesta, verdadero-falso, '
-            f'relacion, completar-texto, ordenar, corregir-texto, escala\n\n'
+            f'relacion, completar-texto, espacio-completar, ordenar, corregir-texto, escala\n\n'
             f'#show: doc => conf(\n'
             f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
             f'  area: "{_escape_str_arg(area_key)}",\n'
@@ -863,26 +946,36 @@ class PdfGeneratorService:
     def _count_preguntas(contenido_raw: str) -> int:
         """Count numbered multiple-choice questions in the markdown content.
 
-        Looks for bold-numbered patterns like **1.** or plain 1. at line start.
+        Looks for bold-numbered patterns like **1.** or plain 1. or Pregunta 1. at line start.
         Returns highest question number found (clamped 1-40).
         """
-        nums = re.findall(r'(?m)^\*{0,2}(\d{1,2})\.\*{0,2}\s', contenido_raw)
+        nums = re.findall(r'(?m)^\s*(?:\*{0,2}|[Pp]regunta\s+)(\d{1,2})[\.\:]', contenido_raw)
         if not nums:
             # Fallback: count "A. [ ]" option blocks
-            options = re.findall(r'(?m)^A\.\s*\[\s*\]', contenido_raw)
-            return max(1, min(len(options), 40))
+            options = re.findall(r'(?m)^[A-Da-d]\.\s*\[\s*\]', contenido_raw)
+            return max(1, min(len(options) // 4 if len(options) >= 4 else len(options), 40))
         return max(1, min(int(max(nums, key=int)), 40))
 
     @staticmethod
     def _clave_to_typst(clave: dict) -> str:
-        """Convert answer key dict {"1": "A", ...} to a Typst dictionary literal."""
+        """Convert answer key dict {"1": "A", ...} to a Typst dictionary literal,
+        ensuring all values are clean uppercase letters ('A', 'B', 'C', 'D')."""
         if not isinstance(clave, dict) or not clave:
             return "none"
-        items = ", ".join(
-            f'"{_escape_str_arg(str(k))}": "{_escape_str_arg(str(v))}"'
-            for k, v in clave.items()
-        )
-        return f"({items},)"
+        items = []
+        for k, v in clave.items():
+            k_str = str(k).strip()
+            v_str = str(v).strip().upper()
+            # Extract valid letter A, B, C, or D
+            if v_str in ("A", "B", "C", "D"):
+                letter = v_str
+            else:
+                m = re.search(r'(?:^|[^\w])([A-D])(?:[.)\s]|$)', v_str)
+                letter = m.group(1) if m else "A"
+            items.append(f'"{_escape_str_arg(k_str)}": "{letter}"')
+        if not items:
+            return "none"
+        return f"({', '.join(items)},)"
 
     def _build_prueba_doc(
         self,
@@ -907,7 +1000,7 @@ class PdfGeneratorService:
             contenido_grados.get(str(grado), contenido_grados.get(grado, ""))
         )
 
-        # clave_respuestas should be a dict {"1": "A", ...}
+        # clave_respuestas should be a dict {"1": "A", ...} or per grade {"3": {"1": "A", ...}}
         clave_raw = actividad.get("clave_respuestas", {})
         if isinstance(clave_raw, str):
             import json as _json
@@ -915,6 +1008,11 @@ class PdfGeneratorService:
                 clave_raw = _json.loads(clave_raw)
             except Exception:
                 clave_raw = {}
+        if isinstance(clave_raw, dict):
+            if str(grado) in clave_raw and isinstance(clave_raw[str(grado)], dict):
+                clave_raw = clave_raw[str(grado)]
+            elif grado in clave_raw and isinstance(clave_raw[grado], dict):
+                clave_raw = clave_raw[grado]
 
         area_raw = plan.get("area", "General")
         area_key = _normalize_area(area_raw)
@@ -957,7 +1055,7 @@ class PdfGeneratorService:
             f'opcion, tabla-formato, bloque-instrucciones\n'
             f'#import "{self._TEMPLATE_IMPORT}": lineas-respuesta, caja-respuesta, '
             f'verdadero-falso, dibujo, grilla, seccion-clave, '
-            f'relacion, completar-texto, ordenar, corregir-texto, escala\n\n'
+            f'relacion, completar-texto, espacio-completar, ordenar, corregir-texto, escala\n\n'
             f'#show: doc => conf-prueba(\n'
             f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
             f'  area: "{_escape_str_arg(area_key)}",\n'

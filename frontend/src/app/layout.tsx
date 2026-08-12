@@ -26,6 +26,15 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "EduAgent",
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+  },
   formatDetection: {
     telephone: false,
   },

@@ -20,6 +20,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _is_prueba_estandarizada(tipo_actividad: str | None) -> bool:
+    """Check if the requested activity is a standardized multiple-choice test (ICFES/Saber)."""
+    if not tipo_actividad:
+        return False
+    tipo_lower = str(tipo_actividad).lower()
+    keywords = [
+        "icfes",
+        "saber",
+        "estandar",
+        "estándar",
+        "seleccion multiple",
+        "selección múltiple",
+        "opcion multiple",
+        "opción múltiple",
+        "simulacro",
+    ]
+    return any(kw in tipo_lower for kw in keywords)
+
+
 def _get_skill_context(area: str, tipo_actividad: str | None = None) -> str:
     """Read the formatting skill markdown file based on the area and activity type."""
     skills_dir = os.path.join(os.path.dirname(__file__), "..", "skills")
@@ -42,10 +61,9 @@ def _get_skill_context(area: str, tipo_actividad: str | None = None) -> str:
     except Exception as e:
         logger.error(f"Error reading components reference file {components_path}: {e}")
 
-    # If the docente specified a prueba estandarizada, prepend the specific skill
+    # If the docente specified a prueba estandarizada (ICFES/Saber), load the specific skill
     # and skip the generic formatting skill (they conflict in format expectations).
-    tipo_lower = (tipo_actividad or "").lower()
-    if "prueba" in tipo_lower and "estandar" in tipo_lower:
+    if _is_prueba_estandarizada(tipo_actividad):
         prueba_path = os.path.join(skills_dir, "prueba_estandarizada.md")
         prueba_skill = ""
         try:
@@ -246,12 +264,9 @@ async def _process_generar_actividad_bg(
             )
         reference_context = "\n\n".join(reference_text_list) if reference_text_list else None
 
-        # Investigación conceptual previa
-        research_context = await openai_service.research_topic(
-            area=plan["area"],
-            grados=plan["grados"],
-            tema=plan["tema"],
-        )
+        # Investigación conceptual previa (Omitida para optimizar tiempo, la planeación ya tiene contexto)
+        research_context = None
+
 
         actividad = await openai_service.generate_actividad(
             area=plan["area"],
@@ -270,7 +285,7 @@ async def _process_generar_actividad_bg(
             {"actividad_generada": actividad}
         )
 
-        # Automatic Verification and Review
+        # Automatic Rigorous Verification, Linting, and Typst Dry-Run
         if actividad:
             try:
                 verified_actividad = await openai_service.verify_actividad(
@@ -278,6 +293,9 @@ async def _process_generar_actividad_bg(
                     tipo_actividad=plan.get("tipo_actividad"),
                     area=plan["area"],
                     tema=plan["tema"],
+                    grados=plan.get("grados"),
+                    plan=plan,
+                    skip_llm_review=True,
                 )
                 if verified_actividad and isinstance(verified_actividad, dict):
                     if "contenido_grados" in verified_actividad or "titulo" in verified_actividad:
@@ -285,8 +303,10 @@ async def _process_generar_actividad_bg(
                             planeacion_id,
                             {"actividad_generada": verified_actividad}
                         )
+                        logger.info(f"Actividad para planeacion {planeacion_id} verificada y persistida exitosamente.")
             except Exception as e:
                 logger.warning(f"Error en verificación automática, usando original: {e}")
+
     except Exception as e:
         logger.error(f"Error in background activity generation for planeacion {planeacion_id}: {e}")
 
@@ -302,6 +322,16 @@ async def generate_actividad(
         if not plan:
             raise HTTPException(status_code=404, detail="Planeación no encontrada")
 
+        # Auto-aprobar la planeación si aún no ha sido validada, ya que al generar
+        # la actividad se asume que el docente está de acuerdo con la planeación.
+        if not plan.get("validada_docente"):
+            await supabase_service.update_planeacion(
+                planeacion_id,
+                {"validada_docente": True}
+            )
+            # Actualizamos el estado local para el background task
+            plan["validada_docente"] = True
+
         skill_context = _get_skill_context(plan["area"], tipo_actividad=plan.get("tipo_actividad"))
 
         background_tasks.add_task(
@@ -311,7 +341,7 @@ async def generate_actividad(
             skill_context
         )
 
-        return {"status": "processing", "message": "Generando en segundo plano"}
+        return {"status": "processing", "message": "Generando en segundo plano", "auto_approved": True}
     except HTTPException:
         raise
     except Exception as e:
@@ -340,7 +370,10 @@ async def get_actividad_pdf(
         raise HTTPException(status_code=404, detail="La planeación no tiene actividad generada")
         
     try:
-        pdf_bytes = await pdf_generator_service.generate_pdf(actividad, plan, grado, docente=docente)
+        if _is_prueba_estandarizada(plan.get("tipo_actividad")) or _is_prueba_estandarizada(actividad.get("titulo")):
+            pdf_bytes = await pdf_generator_service.generate_prueba_pdf(actividad, plan, grado, docente=docente)
+        else:
+            pdf_bytes = await pdf_generator_service.generate_pdf(actividad, plan, grado, docente=docente)
         suffix = "docente" if docente else "estudiante"
         return Response(
             content=pdf_bytes,

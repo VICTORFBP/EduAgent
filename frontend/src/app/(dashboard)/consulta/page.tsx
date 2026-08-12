@@ -663,7 +663,7 @@ export default function AgentePage() {
         .msg-anim { animation: fadeIn 0.25s ease forwards; }
       `}</style>
 
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100dvh-4rem-4.5rem)] lg:h-[calc(100dvh-4rem)] overflow-hidden">
 
         {/* Mobile overlay */}
         {sidebarOpen && (

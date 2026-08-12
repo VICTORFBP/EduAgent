@@ -266,6 +266,18 @@
   }
 }
 
+// ── Espacio inline para completar (punteado) ─────────────────────────────
+#let espacio-completar() = {
+  context {
+    let cp = color-principal.get()
+    box(
+      width: 5em,
+      stroke: (bottom: 1.5pt + cp.lighten(30%)),
+      inset: (bottom: 2pt),
+    )[]
+  }
+}
+
 // ── Ejercicio de ordenar secuencia ────────────────────────────────────────
 #let ordenar(instruccion: "Ordena los siguientes elementos:", items) = {
   context {

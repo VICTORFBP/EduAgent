@@ -126,6 +126,15 @@ export function usePlaneaciones() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || undefined;
       const result = await apiPost<any>(`/planeacion/${id}/actividad`, {}, token);
+      
+      if (result.auto_approved) {
+        setPlaneaciones((prev) => {
+          const newData = prev.map((p) => (p.id === id ? { ...p, validada_docente: true } : p));
+          cachedPlaneaciones = newData;
+          return newData;
+        });
+      }
+
       return result;
     } catch (err: any) {
       setError(err.message || "Error al generar actividad");

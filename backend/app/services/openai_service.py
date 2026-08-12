@@ -29,8 +29,12 @@ def _fix_invalid_json_escapes(json_str: str) -> str:
 
 
 def _extract_json(raw: str) -> dict:
-    """Extract JSON object from LLM response, stripping markdown fences."""
-    cleaned = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.IGNORECASE)
+    """Extract JSON object from LLM response, stripping markdown fences and fixing malformed JSON."""
+    if not raw or not isinstance(raw, str):
+        return {}
+
+    cleaned = raw.strip()
+    cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'```\s*$', '', cleaned, flags=re.IGNORECASE).strip()
 
     # Find the first { and last }
@@ -39,9 +43,29 @@ def _extract_json(raw: str) -> dict:
     if first != -1 and last != -1:
         cleaned = cleaned[first:last + 1]
 
-    # Fix LaTeX-style escapes
-    cleaned = cleaned.replace('\\(', '$').replace('\\)', '$')
-    cleaned = cleaned.replace('\\[', '$$').replace('\\]', '$$')
+    # Try 1: direct parse with strict=False
+    try:
+        return json.loads(cleaned, strict=False)
+    except Exception:
+        pass
+
+    # Try 2: Fix LaTeX and escape characters
+    fixed = cleaned.replace('\\(', '$').replace('\\)', '$')
+    fixed = fixed.replace('\\[', '$$').replace('\\]', '$$')
+    fixed = _fix_invalid_json_escapes(fixed)
+    try:
+        return json.loads(fixed, strict=False)
+    except Exception:
+        pass
+
+    # Try 3: Fix literal unescaped newlines inside quotes
+    try:
+        def _escape_newlines(m):
+            return m.group(0).replace('\n', '\\n').replace('\r', '\\r')
+        fixed_newlines = re.sub(r'"(?:[^"\\]|\\.)*"', _escape_newlines, fixed, flags=re.DOTALL)
+        return json.loads(fixed_newlines, strict=False)
+    except Exception:
+        pass
 
     return json.loads(_fix_invalid_json_escapes(cleaned))
 
@@ -208,6 +232,7 @@ class OpenAIService:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.4,
+            response_format={"type": "json_object"},
             max_tokens=4000,
         )
 
@@ -270,6 +295,7 @@ class OpenAIService:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.2,
+                response_format={"type": "json_object"},
                 max_tokens=4000,
             )
             raw_output = response.choices[0].message.content or ""
@@ -291,7 +317,7 @@ class OpenAIService:
         area: str,
         grados: list[int],
         tema: str,
-        contenido_generado: dict,
+        contenido_generado: dict | None = None,
         tipo_actividad: str | None = None,
         skill_context: str | None = None,
         reference_context: str | None = None,
@@ -301,51 +327,103 @@ class OpenAIService:
         Generate an activity/worksheet from a planeación.
         Replaces n8n's "EduAgent - Generación de Actividad (AI)" workflow.
         """
-        grados_str = ", ".join(str(g) for g in grados)
-        system_prompt = (
-            "Eres un experto pedagógico y creador de material didáctico para la Escuela Rural Mixta El Crucero "
-            "(modelo Escuela Nueva de Colombia). Tu objetivo es diseñar actividades evaluativas y talleres "
-            "visuales, dinámicos, creativos y pedagógicamente rigurosos que NO parezcan plantillas genéricas.\n\n"
-            "🚨 REGLA DE ORO — MATERIAL DE REFERENCIA / ARCHIVOS ADJUNTOS:\n"
-            "Si se proporciona 'Material de referencia del docente' (texto o imagen extraída de un taller, guía, libro o libreta), "
-            "DEBES EXTRAER Y ADAPTAR DIRECTAMENTE LOS EJERCICIOS, PREGUNTAS, DIAGRAMAS Y CASOS DE LECTURA PRESENTES EN ESE MATERIAL. "
-            "No crees preguntas abstractas o genéricas cuando tengas un archivo adjunto: toma sus problemas reales, "
-            "sus lecturas o sus enunciados y transfórmalos en una guía impresa estructurada y diferenciada por grado.\n\n"
-            "🚨 REGLA DE ORO — PRECISIÓN CONCEPTUAL Y TEMÁTICA:\n"
-            "Cada uno de los ejercicios formulados DEBE ser conceptualmente correcto y alinearse ESTRICTAMENTE con el tema de la clase.\n"
-            "Ejemplo: Si el tema es 'Contracciones gramaticales', los ejercicios deben tratar EXCLUSIVAMENTE sobre las contracciones ('al', 'del') "
-            "y NO sobre verbos (soy/eres/tiene) u otros conceptos desacertados.\n\n"
-            "🚨 REGLA DE ORO — PRIORIDAD ABSOLUTA DEL DOCENTE (tipo_actividad):\n"
-            "Si se te proporcionan instrucciones específicas del docente (tipo_actividad), DEBES CUMPLIRLAS AL 100% DE FORMA OBLIGATORIA. "
-            "Por ejemplo:\n"
-            "- Si solicita un texto o lectura extensa ('2 páginas de lectura', 'historia larga', etc.), escribe un relato completo, narrativamente detallado, de varios párrafos dentro del bloque `> 📖 FRAGMENTO` (no hagas un resumen breve de un solo párrafo).\n"
-            "- Si solicita secciones específicas ('comprensión lectora', 'verdadero/falso', 'selección múltiple', 'espacio para dibujar', etc.), INCLÚYELAS TODAS obligatoriamente.\n"
-            "- Si solicita un tema o leyenda específica (ej. 'La leyenda del duende'), enfoca todo el contenido en esa temática.\n\n"
-            "REGLAS DE ESTRUCTURA Y FORMATO:\n"
-            "Responde ÚNICAMENTE con un objeto JSON conteniendo las claves `contenido_grados` y `clave_respuestas` SOLO para los grados solicitados: " + grados_str + ".\n"
-            "Formato JSON exacto:\n"
-            "{\n"
-            '  "titulo": "Título atractivo y contextualizado",\n'
-            f'  "area": "{area}",\n'
-            f'  "tema": "{tema}",\n'
-            '  "instrucciones": "Instrucciones claras para el estudiante",\n'
-            '  "contenido_grados": {\n'
-            f'    "{grados[0]}": "Cadena de texto Markdown completa para grado {grados[0]}..."\n'
-            '  },\n'
-            '  "clave_respuestas": {\n'
-            f'    "{grados[0]}": "Solucionario detallado para el docente..."\n'
-            '  }\n'
-            "}\n\n"
-            "CRÍTICO SOBRE `contenido_grados`:\n"
-            "1. Cada clave de grado DEBE ser una CADENA DE TEXTO MARKDOWN COMPLETA. NO uses objetos anidados como {\"preguntas\": [...]}.\n"
-            "2. Genera contenido ÚNICAMENTE para los grados indicados en la solicitud (" + grados_str + "). NO generes otros grados.\n"
-            "3. LONGITUD Y DENSIDAD: Genera una actividad rica y completa de entre 8 y 12 ítems o ejercicios distribuidos en secciones temáticas (1.5 a 2 páginas por grado).\n"
-            "4. ESPACIOS DE RESPUESTA: Toda pregunta abierta DEBE llevar `[LINEAS:4]` o `[LINEAS:5]` o `> 🎨 DIBUJO`.\n"
-            "5. COMPONENTES VISUALES: Usa `> 📖 FRAGMENTO`, `> 📦 RECUADRO`, `> 🎨 DIBUJO`, `> 📦 GRILLA`, `> 📋 RELACION`, `> 🧩 COMPLETAR`, `> 📝 ORDENAR`, `> ✏️ CORREGIR`, `> 🔢 ESCALA`, `[LINEAS:N]`, `A. [ ]`, `| Afirmación | V | F |<SALTO>`.\n"
-            "6. NO incluyas soluciones en `contenido_grados`; las respuestas van EXCLUSIVAMENTE en `clave_respuestas`.\n"
-            "7. En tablas Markdown (`|...|`), separa filas con `<SALTO>`. Toda notación matemática DEBE usar `$expresión$` o `$$expresión$$`.\n"
-            "Responde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown extra."
+        from app.services.pdf_generator import _is_prueba_estandarizada
+
+        is_prueba = _is_prueba_estandarizada(tipo_actividad) or (
+            isinstance(skill_context, str) and "Prueba Estandarizada" in skill_context
         )
+
+        grados_str = ", ".join(str(g) for g in grados)
+
+        if is_prueba:
+            system_prompt = (
+                "Eres un experto pedagógico y diseñador de pruebas estandarizadas (tipo Saber / ICFES) para el "
+                "Ministerio de Educación Nacional de Colombia y el modelo Escuela Nueva.\n"
+                "Tu objetivo es diseñar una PRUEBA ESTANDARIZADA DE SELECCIÓN MÚLTIPLE rigurosa, alineada con DBA y competencias.\n\n"
+                "🚨 REGLAS ABSOLUTAS E INVIOLABLES DE PRUEBA ESTANDARIZADA:\n"
+                "1. 100% PREGUNTAS DE SELECCIÓN MÚLTIPLE: TODAS las preguntas (1 a N, exactamente la cantidad solicitada por el docente, ej. 10 o 15 preguntas) DEBEN ser obligatoriamente de selección múltiple con 4 opciones (A, B, C, D) y UNA SOLA respuesta correcta.\n"
+                "2. ESTRICTAMENTE PROHIBIDAS PREGUNTAS ABIERTAS: NUNCA uses [LINEAS:N], cajas de respuesta, espacios para dibujar (> 🎨 DIBUJO), tablas V/F, completar (> 🧩 COMPLETAR), relacionar (> 📋 RELACION), ni ordenar (> 📝 ORDENAR). CERO preguntas abiertas o de desarrollo.\n"
+                "3. ESTRUCTURA Y COMPONENTES PERMITIDOS:\n"
+                "   - Lecturas o contextos: Usa `> 📖 FRAGMENTO` para lecturas introductorias o casos de análisis.\n"
+                "   - Tablas de datos: Usa `| Columna 1 | Columna 2 |<SALTO>` si alguna pregunta requiere análisis de datos.\n"
+                "   - Notación matemática: Usa `$expresión$` o `$$expresión$$` si aplica.\n"
+                "   - Agrupa las preguntas por secciones o competencias (ej. `## Competencia: Comprensión Lectora`, `## Competencia: Razonamiento`, etc.).\n"
+                "   - Cada pregunta DEBE formularse con número en negrita y exactamente 4 opciones con casillas:\n"
+                "     **1.** Enunciado claro y contextualizado de la pregunta.\n\n"
+                "     A. [ ] Opción A\n"
+                "     B. [ ] Opción B\n"
+                "     C. [ ] Opción C\n"
+                "     D. [ ] Opción D\n\n"
+                "   - Cada distractor (opción incorrecta) debe ser plausible pero unívocamente incorrecto.\n"
+                "   - NO incluyas las respuestas correctas en `contenido_grados`.\n\n"
+                "4. CLAVE DE RESPUESTAS (`clave_respuestas`) — OBLIGATORIO FORMATO EXACTO:\n"
+                "   - DEBE ser un diccionario JSON donde la llave es el número de pregunta como string (\"1\", \"2\", ..., \"N\") y el valor es ÚNICAMENTE la letra mayúscula de la opción correcta (\"A\", \"B\", \"C\" o \"D\").\n"
+                "   - NUNCA incluyas texto explicativo, oraciones completas ni párrafos en los valores de `clave_respuestas`, porque este diccionario se usa para rellenar automáticamente las burbujas OMR de la hoja de respuestas del docente.\n"
+                "   - Ejemplo exacto para 10 preguntas:\n"
+                "     {\n"
+                '       "1": "C",\n'
+                '       "2": "A",\n'
+                '       "3": "D",\n'
+                '       "4": "B",\n'
+                '       "5": "C",\n'
+                '       "6": "B",\n'
+                '       "7": "A",\n'
+                '       "8": "D",\n'
+                '       "9": "C",\n'
+                '       "10": "B"\n'
+                "5. FORMATO DE `contenido_grados`:\n"
+                "   - `contenido_grados` DEBE ser un diccionario donde cada llave es el grado como string (ej. \"5\") y su valor es una CADENA DE TEXTO MARKDOWN COMPLETA (string) que contiene todas las preguntas concatenadas con el formato estándar.\n"
+                "   - NUNCA uses listas ni diccionarios anidados como valor de un grado dentro de `contenido_grados`.\n\n"
+                "Responde ÚNICAMENTE con el objeto JSON conteniendo `titulo`, `area`, `tema`, `instrucciones`, `contenido_grados` y `clave_respuestas`."
+            )
+        else:
+            system_prompt = (
+                "Eres un experto pedagógico y creador de material didáctico para la Escuela Rural Mixta El Crucero "
+                "(modelo Escuela Nueva de Colombia). Tu objetivo es diseñar actividades evaluativas y talleres "
+                "visuales, dinámicos, creativos y pedagógicamente rigurosos que NO parezcan plantillas genéricas.\n\n"
+                "🚨 REGLA DE ORO — MATERIAL DE REFERENCIA / ARCHIVOS ADJUNTOS:\n"
+                "Si se proporciona 'Material de referencia del docente' (texto o imagen extraída de un taller, guía, libro o libreta), "
+                "DEBES EXTRAER Y ADAPTAR DIRECTAMENTE LOS EJERCICIOS, PREGUNTAS, DIAGRAMAS Y CASOS DE LECTURA PRESENTES EN ESE MATERIAL. "
+                "No crees preguntas abstractas o genéricas cuando tengas un archivo adjunto: toma sus problemas reales, "
+                "sus lecturas o sus enunciados y transfórmalos en una guía impresa estructurada y diferenciada por grado.\n\n"
+                "🚨 REGLA DE ORO — PRECISIÓN CONCEPTUAL Y TEMÁTICA:\n"
+                "Cada uno de los ejercicios formulados DEBE ser conceptualmente correcto y alinearse ESTRICTAMENTE con el tema de la clase.\n"
+                "Ejemplo: Si el tema es 'Contracciones gramaticales', los ejercicios deben tratar EXCLUSIVAMENTE sobre las contracciones ('al', 'del') "
+                "y NO sobre verbos (soy/eres/tiene) u otros conceptos desacertados.\n\n"
+                "🚨 REGLA DE ORO — PRIORIDAD ABSOLUTA DEL DOCENTE (tipo_actividad):\n"
+                "Si se te proporcionan instrucciones específicas del docente (tipo_actividad), DEBES CUMPLIRLAS AL 100% DE FORMA OBLIGATORIA. "
+                "Por ejemplo:\n"
+                "- Si solicita un texto o lectura extensa ('2 páginas de lectura', 'historia larga', etc.), escribe un relato completo, narrativamente detallado, de varios párrafos dentro del bloque `> 📖 FRAGMENTO` (no hagas un resumen breve de un solo párrafo).\n"
+                "- Si solicita secciones específicas ('comprensión lectora', 'verdadero/falso', 'selección múltiple', 'espacio para dibujar', etc.), INCLÚYELAS TODAS obligatoriamente.\n"
+                "- Si solicita un tema o leyenda específica (ej. 'La leyenda del duende'), enfoca todo el contenido en esa temática.\n\n"
+                "REGLAS DE ESTRUCTURA Y FORMATO:\n"
+                "Responde ÚNICAMENTE con un objeto JSON conteniendo las claves `contenido_grados` y `clave_respuestas` SOLO para los grados solicitados: " + grados_str + ".\n"
+                "Formato JSON exacto:\n"
+                "{\n"
+                '  "titulo": "Título atractivo y contextualizado",\n'
+                f'  "area": "{area}",\n'
+                f'  "tema": "{tema}",\n'
+                '  "instrucciones": "Instrucciones claras para el estudiante",\n'
+                '  "contenido_grados": {\n'
+                f'    "{grados[0]}": "Cadena de texto Markdown completa para grado {grados[0]}..."\n'
+                '  },\n'
+                '  "clave_respuestas": {\n'
+                f'    "{grados[0]}": "Solucionario detallado para el docente..."\n'
+                '  }\n'
+                "}\n\n"
+                "CRÍTICO SOBRE `contenido_grados`:\n"
+                "1. Cada clave de grado DEBE ser una CADENA DE TEXTO MARKDOWN COMPLETA. NO uses objetos anidados como {\"preguntas\": [...]}.\n"
+                "2. Genera contenido ÚNICAMENTE para los grados indicados en la solicitud (" + grados_str + "). NO generes otros grados.\n"
+                "3. LONGITUD Y DENSIDAD: Genera una actividad rica y completa de entre 8 y 12 ítems o ejercicios distribuidos en secciones temáticas (1.5 a 2 páginas por grado).\n"
+                "4. ESPACIOS DE RESPUESTA: Toda pregunta abierta DEBE llevar `[LINEAS:4]` o `[LINEAS:5]` o `> 🎨 DIBUJO`.\n"
+                "5. COMPONENTES VISUALES: Usa `> 📖 FRAGMENTO`, `> 📦 RECUADRO`, `> 🎨 DIBUJO`, `> 📦 GRILLA`, `> 📋 RELACION`, `> 🧩 COMPLETAR`, `> 📝 ORDENAR`, `> ✏️ CORREGIR`, `> 🔢 ESCALA`, `[LINEAS:N]`, `A. [ ]`, `| Afirmación | V | F |<SALTO>`.\n"
+                "6. NO incluyas soluciones en `contenido_grados`; las respuestas van EXCLUSIVAMENTE en `clave_respuestas`.\n"
+                "7. En tablas Markdown (`|...|`), separa filas con `<SALTO>`. Toda notación matemática DEBE usar `$expresión$` o `$$expresión$$`.\n"
+                "8. RELACION: Escribe los pares correctamente emparejados (izq | der). El sistema desordena automáticamente la columna derecha.\n"
+                "9. COMPLETAR: Usa EXACTAMENTE `___` (triple guion bajo) para cada espacio. NUNCA uses más de 3 guiones bajos seguidos.\n"
+                "10. ORDENAR: Escribe los ítems en su secuencia lógica sin numeración (sin 1., 2., etc.), cada uno en línea `> `. El sistema los desordena automáticamente para el estudiante.\n"
+                "Responde ÚNICAMENTE con el objeto JSON, sin bloques de código markdown extra."
+            )
 
         user_prompt_parts = [
             f"Área: {area}",
@@ -377,20 +455,30 @@ class OpenAIService:
 
         user_prompt = "\n\n".join(user_prompt_parts)
 
-        response = await self.client.chat.completions.create(
-            model=settings.openai_generation_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.5,
-            max_tokens=4000,
-        )
+        for attempt in range(2):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=settings.openai_generation_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt + "\n\n⚠️ INSTRUCCIÓN FINAL OBLIGATORIA: Escribe ÚNICAMENTE el código JSON dentro de un bloque de código Markdown (```json ... ```). NO entres en bucles infinitos, genera EXACTAMENTE lo pedido y cierra el JSON correctamente."},
+                    ],
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    max_tokens=8000,
+                )
 
-        raw_output = response.choices[0].message.content or ""
-        return _extract_json(raw_output)
+                raw_output = response.choices[0].message.content or ""
+                return _extract_json(raw_output)
+            except Exception as e:
+                logger.warning(f"JSON parsing error on attempt {attempt+1} for generate_actividad: {e}")
+                if attempt == 1:
+                    raise
+                user_prompt += f"\n\n🚨 ERROR EN EL JSON ANTERIOR: {str(e)}\nPor favor, asegúrate de generar un JSON estrictamente válido, revisando las comas y comillas escapadas."
+        
+        return {}
 
-    # ─── Verificación y Revisión de Actividad ──────────────────────────────────
+    # ─── Verificación y Revisión Rigurosa de Actividad ────────────────────────
 
     async def verify_actividad(
         self,
@@ -398,62 +486,209 @@ class OpenAIService:
         tipo_actividad: str | None = None,
         area: str | None = None,
         tema: str | None = None,
+        grados: list[int] | None = None,
+        plan: dict | None = None,
+        skip_llm_review: bool = False,
     ) -> dict:
         """
-        Audita y corrige una actividad evaluativa/taller.
-        Efectúa revisión técnica de sintaxis y revisión de calidad/exactitud conceptual.
+        Audita, sanitiza y verifica rigurosamente una actividad evaluativa/taller.
+        Pipeline:
+        1. Sanitizador y Linter determinista (corrige sintaxis Markdown, componentes y tablas).
+        2. Auditoría pedagógica y de contenido con LLM (revisión de rigor conceptual, tipo_actividad y clave de respuestas).
+        3. Re-sanitización determinista del resultado del LLM.
+        4. Dry-run de compilación Typst en memoria (para estudiante y docente).
+        5. Auto-reparación dirigida si Typst arroja algún error de compilación.
         """
-        system_prompt = (
-            "Eres un auditor pedagógico senior y especialista en control de calidad técnica para EduAgent.\n"
-            "Tu tarea es REVISAR Y CORREGIR rigurosamente el JSON de la actividad evaluativa/taller antes de entregarlo al docente.\n\n"
-            "CRITERIOS OBLIGATORIOS DE AUDITORÍA Y CORRECCIÓN:\n\n"
-            "1. PRECISIÓN CONCEPTUAL DEL TEMA:\n"
-            "   - Revisa CADA ejercicio en `contenido_grados`. Todos los ejercicios deben corresponder ESTRICTAMENTE al tema de la clase.\n"
-            "   - Ejemplo: Si el tema es 'Contracciones gramaticales', los ejercicios deben tratar sobre las contracciones en español ('al' = a + el, 'del' = de + el). Queda TOTALMENTE PROHIBIDO incluir ejercicios de conjugación verbal (soy/eres/tiene) u otros temas no relacionados.\n"
-            "   - Si un ejercicio es conceptualmente erróneo o irrelevante, REEMPLÁZALO por uno correcto y bien formulado sobre el tema.\n\n"
-            "2. CALIDAD DE PREGUNTAS Y OPCIONES:\n"
-            "   - En preguntas de selección múltiple (A, B, C, D), asegúrate de que TODAS las opciones tengan sentido y sean plausibles. Elimina opciones absurdas como '[ ] No puedo', 'Opción D', etc.\n"
-            "   - En ejercicios de completar (____), asegúrate de que las opciones sugeridas entre paréntesis sean distintas y correctas (ej. '(al / a el)', no '(soy/soy)').\n"
-            "   - Evita ejercicios redundantes o sin instrucciones claras.\n\n"
-            "3. ESTRUCTURA Y FORMATO TÉCNICO:\n"
-            "   - `contenido_grados` debe mapear cada grado ('1', '2', '3', etc.) a una CADENA DE MARKDOWN COMPLETA. NO uses diccionarios u objetos anidados.\n"
-            "   - Respeta las instrucciones del docente (si pide textos largos o secciones específicas).\n"
-            "   - Verifica la sintaxis de componentes visuales (`> 📖 FRAGMENTO`, `> 📦 GRILLA`, `[LINEAS:N]`, `> 🎨 DIBUJO`, `> 📋 RELACION`, etc.).\n"
-            "   - Asegúrate de que las soluciones estén EXCLUSIVAMENTE en `clave_respuestas` y NUNCA en `contenido_grados`.\n"
-            "   - En tablas Markdown `|...|`, separa filas con `<SALTO>`.\n"
-            "   - Toda notación matemática DEBE usar $...$ o $$...$$.\n\n"
-            "Devuelve ÚNICAMENTE el objeto JSON corregido, sin bloques de código markdown."
+        from app.services.activity_validator import (
+            validate_and_sanitize_activity,
+            test_typst_compilation,
+            sanitize_activity_markdown,
+        )
+        from app.services.pdf_generator import _is_prueba_estandarizada
+
+        if not actividad or not isinstance(actividad, dict):
+            return actividad
+
+        plan_tipo = plan.get("tipo_actividad") if isinstance(plan, dict) else None
+        is_prueba = (
+            _is_prueba_estandarizada(tipo_actividad)
+            or _is_prueba_estandarizada(plan_tipo)
+            or _is_prueba_estandarizada(actividad.get("titulo"))
         )
 
-        user_content_parts = [json.dumps(actividad, ensure_ascii=False)]
-        if area:
-            user_content_parts.append(f"Área: {area}")
-        if tema:
-            user_content_parts.append(f"Tema de la clase: {tema}")
-        if tipo_actividad:
-            user_content_parts.append(f"Instrucciones del docente:\n{tipo_actividad}")
+        # 1. Pre-sanitización determinista
+        actividad = validate_and_sanitize_activity(
+            actividad,
+            grados=grados,
+            tipo_actividad=tipo_actividad,
+            plan=plan,
+        )
 
-        user_content = "\n\n".join(user_content_parts)
+        # 2. Auditoría Pedagógica y de Calidad con LLM (Opcional, omitible por rendimiento)
+        if not skip_llm_review:
+            if is_prueba:
+                system_prompt = (
+                    "Eres un auditor pedagógico senior y especialista en control de calidad técnica para pruebas estandarizadas (tipo ICFES / Saber) en EduAgent.\n"
+                    "Tu tarea es REVISAR Y CORREGIR rigurosamente el JSON de la PRUEBA ESTANDARIZADA antes de entregarla al docente.\n\n"
+                    "CRITERIOS OBLIGATORIOS DE AUDITORÍA Y CORRECCIÓN PARA PRUEBAS ESTANDARIZADAS:\n\n"
+                    "1. 100% PREGUNTAS DE SELECCIÓN MÚLTIPLE:\n"
+                    "   - TODAS las preguntas en `contenido_grados` DEBEN ser de selección múltiple con 4 opciones: A. [ ], B. [ ], C. [ ], D. [ ].\n"
+                    "   - Si encuentras preguntas abiertas, líneas de respuesta `[LINEAS:N]`, dibujos `> 🎨 DIBUJO`, o ejercicios de desarrollo, CONVIÉRTELAS O REEMPLÁZALAS INMEDIATAMENTE por preguntas de selección múltiple con 4 opciones (A, B, C, D).\n"
+                    "   - NINGUNA pregunta puede tener líneas de respuesta abierta ni espacios en blanco para escribir.\n\n"
+                    "2. OPCIONES VÁLIDAS Y RIGOR PEDAGÓGICO:\n"
+                    "   - Cada pregunta debe tener exactamente 4 opciones: A. [ ], B. [ ], C. [ ], D. [ ].\n"
+                    "   - Las 4 opciones deben ser plausibles y pertinentes al tema evaluado.\n"
+                    "   - NUNCA incluyas la respuesta marcada o revelada en `contenido_grados`.\n\n"
+                    "3. CLAVE DE RESPUESTAS (`clave_respuestas`) PURA Y COMPLETA:\n"
+                    "   - DEBE incluir una entrada para CADA número de pregunta (del 1 al N).\n"
+                    "   - El valor de CADA pregunta en `clave_respuestas` DEBE ser EXCLUSIVAMENTE una sola letra mayúscula: \"A\", \"B\", \"C\" o \"D\".\n"
+                    "   - Si algún valor contiene texto o explicaciones, extráele la letra correcta o asígnale la opción correcta (ej: si dice 'La perseverancia...' y esa es la opción C, cambia el valor a 'C').\n"
+                    "   - NINGÚN valor de `clave_respuestas` puede ser una frase o párrafo; SOLO una letra (\"A\", \"B\", \"C\" o \"D\").\n\n"
+                    "4. FORMATO DEL JSON Y CONTENIDO:\n"
+                    "   - Cada valor en `contenido_grados` (ej. `contenido_grados[\"5\"]`) DEBE ser una CADENA DE TEXTO MARKDOWN COMPLETA (string) con todas las preguntas (`**1.** ... A. [ ] ...`), NUNCA un objeto JSON ni lista anidada.\n"
+                    "   - Devuelve ÚNICAMENTE el objeto JSON con las claves `titulo`, `area`, `tema`, `instrucciones`, `contenido_grados` y `clave_respuestas`."
+                )
+            else:
+                system_prompt = (
+                    "Eres un auditor pedagógico senior y especialista en control de calidad técnica para EduAgent "
+                    "(modelo Escuela Nueva de Colombia).\n"
+                    "Tu tarea es REVISAR Y CORREGIR rigurosamente el JSON de la actividad evaluativa/taller antes de entregarlo al docente.\n\n"
+                    "CRITERIOS OBLIGATORIOS DE AUDITORÍA Y CORRECCIÓN:\n\n"
+                    "1. PRECISIÓN CONCEPTUAL Y TEMÁTICA:\n"
+                    "   - Revisa CADA ejercicio en `contenido_grados`. Todos los ejercicios deben corresponder ESTRICTAMENTE al tema y área solicitados.\n"
+                    "   - Si un ejercicio es conceptualmente erróneo, irrelevante o trata sobre otro tema, REEMPLÁZALO por uno correcto y pedagógicamente acertado.\n\n"
+                    "2. CUMPLIMIENTO AL 100% DE REQUISITOS DEL DOCENTE (tipo_actividad):\n"
+                    "   - Si el docente solicitó una lectura larga, un relato específico, preguntas Saber, secciones de dibujo, V/F o comprensión lectora, ASEGÚRATE DE QUE ESTÉN TODAS PRESENTES.\n\n"
+                    "3. CALIDAD DE PREGUNTAS Y OPCIONES:\n"
+                    "   - En preguntas de selección múltiple (A. [ ], B. [ ], C. [ ], D. [ ]), todas las opciones deben ser plausibles y sin opciones absurdas.\n"
+                    "   - En ejercicios de completar (___), usa siempre triple guion bajo `___` para cada espacio.\n"
+                    "   - En ejercicios de ordenar (`> 📝 ORDENAR`), no incluyas números previos (1., 2.) en los ítems, ya que el sistema los baraja automáticamente.\n"
+                    "   - En ejercicios de relacionar (`> 📋 RELACION`), empareja correctamente cada fila con `|`.\n\n"
+                    "4. ESPACIOS DE RESPUESTA:\n"
+                    "   - Toda pregunta abierta DEBE llevar `[LINEAS:4]` o `[LINEAS:5]` o `> 🎨 DIBUJO` o `> 📦 RECUADRO`.\n"
+                    "   - NUNCA incluyas las respuestas en `contenido_grados`.\n\n"
+                    "5. CLAVE DE RESPUESTAS (`clave_respuestas`):\n"
+                    "   - Debe incluir la solución detallada o criterios de corrección para cada ejercicio y para cada grado evaluado.\n\n"
+                    "6. FORMATO DEL JSON:\n"
+                    "   - Devuelve ÚNICAMENTE el objeto JSON con las claves `titulo`, `area`, `tema`, `instrucciones`, `contenido_grados` y `clave_respuestas`."
+                )
+
+            user_content_parts = [json.dumps(actividad, ensure_ascii=False)]
+            if area:
+                user_content_parts.append(f"Área: {area}")
+            if tema:
+                user_content_parts.append(f"Tema de la clase: {tema}")
+            if tipo_actividad:
+                user_content_parts.append(f"Instrucciones específicas del docente:\n{tipo_actividad}")
+            if grados:
+                user_content_parts.append(f"Grados a verificar: {', '.join(str(g) for g in grados)}")
+
+            user_content = "\n\n".join(user_content_parts)
+
+            try:
+                response = await self.client.chat.completions.create(
+                    model=settings.openai_review_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content + "\n\n⚠️ Devuelve el JSON dentro de un bloque de código Markdown (```json ... ```). NO entres en bucles infinitos, genera EXACTAMENTE lo pedido y cierra el JSON correctamente."},
+                    ],
+                    temperature=0.1,
+                    response_format={"type": "json_object"},
+                    max_tokens=8000,
+                )
+
+                raw_output = response.choices[0].message.content or ""
+                reviewed = _extract_json(raw_output)
+                if isinstance(reviewed, dict) and "contenido_grados" in reviewed:
+                    actividad = reviewed
+                    logger.info("Auditoría pedagógica con LLM completada exitosamente")
+            except Exception as e:
+                logger.warning(f"Auditoría pedagógica con LLM falló, usando versión pre-sanitizada: {e}")
+
+
+        # 3. Post-sanitización determinista
+        actividad = validate_and_sanitize_activity(
+            actividad,
+            grados=grados,
+            tipo_actividad=tipo_actividad,
+            plan=plan,
+        )
+
+        # 4. Dry-run de compilación Typst y auto-reparación
+        plan_dict = plan or {
+            "area": area or actividad.get("area", "General"),
+            "tema": tema or actividad.get("tema", ""),
+            "tipo_actividad": tipo_actividad,
+            "grados": grados or [5],
+        }
+
+        success, err_msg, fail_info = test_typst_compilation(actividad, plan_dict, grados=grados)
+        if not success and fail_info:
+            logger.warning(f"Dry-run Typst compilation detectó un error: {err_msg}. Iniciando auto-reparación dirigida...")
+            actividad = await self._repair_typst_markdown(actividad, fail_info, err_msg or "Syntax error", plan_dict)
+            # Re-sanitizar y re-probar
+            actividad = validate_and_sanitize_activity(actividad, grados=grados)
+            success_retry, err_retry, _ = test_typst_compilation(actividad, plan_dict, grados=grados)
+            if success_retry:
+                logger.info("Auto-reparación de Typst exitosa: el PDF compila limpiamente.")
+            else:
+                logger.error(f"Typst auto-repair aún arroja error: {err_retry}. Se aplicó sanitización de respaldo.")
+
+        return actividad
+
+    async def _repair_typst_markdown(
+        self,
+        actividad: dict,
+        failure_info: dict,
+        error_message: str,
+        plan: dict,
+    ) -> dict:
+        """
+        Auto-reparación dirigida de Markdown cuando la compilación de Typst arroja un error.
+        """
+        from app.services.activity_validator import sanitize_activity_markdown
+
+        grado = str(failure_info.get("grado", "5"))
+        failed_md = actividad.get("contenido_grados", {}).get(grado, "")
+        if not failed_md:
+            return actividad
+
+        system_prompt = (
+            "Eres un especialista en sintaxis Markdown y compilación de Typst para EduAgent.\n"
+            "El Markdown generado para una actividad escolar produjo un error al compilar con Typst.\n"
+            "Tu tarea es CORREGIR el Markdown para que compile sin errores en Typst, preservando todo el contenido didáctico.\n\n"
+            "REGLAS CRÍTICAS DE CORRECCIÓN:\n"
+            "1. Asegúrate de que todos los delimitadores de matemáticas ($) estén debidamente abiertos y cerrados.\n"
+            "2. En tablas Markdown, separa las filas usando <SALTO> y nunca uses HTML.\n"
+            "3. En bloques `> 📋 RELACION`, usa formato `Concepto | Definición` en cada línea.\n"
+            "4. En bloques `> 📝 ORDENAR`, cada elemento va en su línea con `> ` sin números (1., 2.).\n"
+            "5. En bloques `> 🧩 COMPLETAR`, usa `___` (triple guion bajo) para los espacios.\n"
+            "6. Devuelve ÚNICAMENTE el texto Markdown corregido para este grado, sin bloques de código markdown ni explicaciones."
+        )
+
+        user_prompt = (
+            f"ERROR DE COMPILACIÓN TYPST:\n{error_message}\n\n"
+            f"MARKDOWN CON ERROR (Grado {grado}):\n{failed_md}"
+        )
 
         try:
             response = await self.client.chat.completions.create(
                 model=settings.openai_review_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
+                    {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.1,
+                temperature=0.0,
                 max_tokens=4000,
             )
+            repaired_md = (response.choices[0].message.content or "").strip()
+            repaired_md = re.sub(r'^```(?:markdown)?\s*\n', '', repaired_md, flags=re.IGNORECASE)
+            repaired_md = re.sub(r'\n```\s*$', '', repaired_md)
 
-            raw_output = response.choices[0].message.content or ""
-            reviewed = _extract_json(raw_output)
-            if isinstance(reviewed, dict) and "contenido_grados" in reviewed:
-                logger.info("Auditoría y verificación de actividad completada exitosamente")
-                return reviewed
+            actividad["contenido_grados"][grado] = sanitize_activity_markdown(repaired_md)
             return actividad
-        except (json.JSONDecodeError, ValueError, Exception) as e:
-            logger.warning(f"Verification/Review returned invalid JSON, keeping original: {e}")
+        except Exception as e:
+            logger.error(f"Error en _repair_typst_markdown: {e}")
             return actividad
 
     async def review_actividad(
@@ -462,21 +697,59 @@ class OpenAIService:
         tipo_actividad: str | None = None,
         area: str | None = None,
         tema: str | None = None,
+        grados: list[int] | None = None,
+        plan: dict | None = None,
     ) -> dict:
         """Alias de verify_actividad."""
-        return await self.verify_actividad(actividad, tipo_actividad=tipo_actividad, area=area, tema=tema)
+        return await self.verify_actividad(
+            actividad,
+            tipo_actividad=tipo_actividad,
+            area=area,
+            tema=tema,
+            grados=grados,
+            plan=plan,
+        )
 
-    # ─── Evaluación con Vision (OCR y Calificación Inteligente) ───────────────
+
+    # ─── Gestión de Archivos en OpenAI (File API) ────────────────────────────
+    async def upload_file(
+        self,
+        file_bytes: bytes,
+        filename: str = "documento.pdf",
+        mime_type: str = "application/pdf",
+    ) -> str:
+        """Sube un archivo (ej. PDF) a la API de OpenAI y retorna su file_id."""
+        file_obj = await self.client.files.create(
+            file=(filename, file_bytes, mime_type),
+            purpose="user_data",
+        )
+        logger.info(f"Archivo subido a OpenAI Files: {file_obj.id} ({filename})")
+        return file_obj.id
+
+    async def delete_file(self, file_id: str) -> bool:
+        """Elimina un archivo de OpenAI para evitar acumular almacenamiento innecesario."""
+        try:
+            res = await self.client.files.delete(file_id)
+            deleted = getattr(res, "deleted", True)
+            logger.info(f"Archivo eliminado de OpenAI Files: {file_id} (deleted={deleted})")
+            return deleted
+        except Exception as e:
+            logger.warning(f"No se pudo eliminar el archivo {file_id} de OpenAI: {e}")
+            return False
+
+    # ─── Evaluación con Vision / File API (OCR y Calificación Inteligente) ───
 
     async def evaluate_with_vision(
         self,
-        image_data: bytes | str,
-        content_type: str,
-        tipo: str,
+        image_data: bytes | str | list[bytes] | None = None,
+        file_id: str | None = None,
+        content_type: str = "image/jpeg",
+        tipo: str = "estandarizada",
         is_url: bool = False,
     ) -> dict:
         """
-        Extrae respuestas del estudiante y datos visuales de una imagen/PDF usando GPT-4o Vision.
+        Extrae respuestas del estudiante y datos visuales de una imagen o PDF usando GPT-4o.
+        Soporta archivo nativo de OpenAI (file_id), imagen única, lista de imágenes, base64 o URL.
         """
         if tipo == "estandarizada":
             ocr_prompt = (
@@ -521,22 +794,41 @@ class OpenAIService:
 
         content: list[dict] = [{"type": "text", "text": ocr_prompt}]
 
-        if is_url:
+        if file_id:
+            # Soporte nativo de OpenAI File API para PDFs
+            content.append({
+                "type": "file",
+                "file": {"file_id": file_id},
+            })
+        elif isinstance(image_data, list):
+            for img_bytes in image_data:
+                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{b64}", "detail": "high"},
+                })
+        elif is_url and isinstance(image_data, str):
             content.append({
                 "type": "image_url",
                 "image_url": {"url": image_data, "detail": "high"},
             })
-        else:
+        elif isinstance(image_data, bytes):
             b64 = base64.b64encode(image_data).decode("utf-8")
             content.append({
                 "type": "image_url",
                 "image_url": {"url": f"data:{content_type};base64,{b64}", "detail": "high"},
+            })
+        elif isinstance(image_data, str):
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{content_type};base64,{image_data}", "detail": "high"},
             })
 
         response = await self.client.chat.completions.create(
             model=settings.openai_vision_model,
             messages=[{"role": "user", "content": content}],
             temperature=0,
+            response_format={"type": "json_object"},
             max_tokens=2000,
         )
 
@@ -611,6 +903,7 @@ class OpenAIService:
             model=settings.openai_vision_model,
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0.1,
+            response_format={"type": "json_object"},
             max_tokens=1500,
         )
 

@@ -1,17 +1,19 @@
-# Skill: Prueba Estandarizada — Selección Múltiple
+# Skill: Prueba Estandarizada — Selección Múltiple (Tipo ICFES / Saber)
 
-Este skill se activa cuando el docente solicita una **prueba estandarizada** (tipo SABER, ICFES, ENLACE o similar).
+Este skill se activa cuando el docente solicita una **prueba estandarizada** (tipo SABER, ICFES, simulacro o selección múltiple).
 
 ## Reglas ABSOLUTAS del formato
 
 1. **SOLO preguntas de selección múltiple con única respuesta** (A, B, C, D).
-2. **Entre 10 y 20 preguntas** por grado. Se recomienda 15 para una prueba equilibrada.
-3. **Cada pregunta** debe tener:
-   - Un enunciado claro (puede incluir un fragmento de texto, tabla o situación).
+2. **Entre 10 y 20 preguntas** por grado (15 recomendado).
+3. **Material de referencia del docente / Archivos adjuntos**:
+   - Si se adjunta un documento o imagen de referencia, extrae y formula las preguntas basándote en los textos, problemas, diagramas o casos contenidos en ese material.
+4. **Cada pregunta** debe tener:
+   - Un enunciado claro (puede incluir un fragmento de texto `> 📖 FRAGMENTO`, tabla o situación problémica).
    - Exactamente 4 opciones: A, B, C, D.
-   - Una sola respuesta correcta.
-4. **NO uses** `[LINEAS:N]`, cajas de respuesta abierta, ni `> 🎨 DIBUJO` en el contenido.
-5. **NO incluyas** las respuestas correctas en `contenido_grados`. Solo el enunciado y las opciones.
+   - Una sola respuesta correcta clara e indiscutible.
+5. **NO uses** `[LINEAS:N]`, cajas de respuesta abierta, ni `> 🎨 DIBUJO` en el contenido de la prueba.
+6. **NO incluyas** las respuestas correctas en `contenido_grados`. Solo el enunciado y las opciones. Las respuestas van EXCLUSIVAMENTE en `clave_respuestas`.
 
 ## Formato de preguntas (OBLIGATORIO)
 

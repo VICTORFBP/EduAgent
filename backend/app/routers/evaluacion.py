@@ -17,7 +17,7 @@ router = APIRouter()
 
 async def _trigger_evaluacion_background(
     evaluacion_id: str,
-    estudiante_id: str,
+    estudiante_id: str | None,
     docente_id: str,
     area: str,
     tipo: str,
@@ -28,15 +28,46 @@ async def _trigger_evaluacion_background(
 ) -> None:
     """Process evaluation with GPT-4o Vision: OCR + grading; errors logged only."""
     try:
-        signed_url = await storage_service.create_signed_url(bucket, rel_path, expires_in=3600)
+        # Download the file directly from Supabase Storage
+        file_bytes = await storage_service.download_file(bucket, rel_path)
+        if not file_bytes:
+            raise ValueError(f"No se pudo descargar el archivo {bucket}/{rel_path} desde el almacenamiento.")
 
-        # Step 1: OCR — extract student answers using Vision
-        vision_data = await openai_service.evaluate_with_vision(
-            image_data=signed_url,
-            content_type="image/jpeg",  # Vision handles URL regardless of type
-            tipo=tipo,
-            is_url=True,
-        )
+        file_id_to_cleanup = None
+        try:
+            is_pdf = rel_path.lower().endswith(".pdf") or file_bytes.startswith(b"%PDF")
+
+            if is_pdf:
+                # Subir PDF directamente a OpenAI File API
+                import os
+                filename = os.path.basename(rel_path) or "evaluacion.pdf"
+                file_id = await openai_service.upload_file(
+                    file_bytes=file_bytes,
+                    filename=filename,
+                    mime_type="application/pdf",
+                )
+                file_id_to_cleanup = file_id
+
+                vision_data = await openai_service.evaluate_with_vision(
+                    file_id=file_id,
+                    tipo=tipo,
+                )
+            else:
+                ct = "image/jpeg"
+                if rel_path.lower().endswith(".png"):
+                    ct = "image/png"
+                elif rel_path.lower().endswith(".webp"):
+                    ct = "image/webp"
+
+                vision_data = await openai_service.evaluate_with_vision(
+                    image_data=file_bytes,
+                    content_type=ct,
+                    tipo=tipo,
+                    is_url=False,
+                )
+        finally:
+            if file_id_to_cleanup:
+                await openai_service.delete_file(file_id_to_cleanup)
 
         # Step 2: Grade — compare with answer key
         grade_data = await openai_service.evaluate_grade(
@@ -151,7 +182,7 @@ async def create_evaluacion(
                         pages_to_keep.append(i)
                 
                 # If we found a teacher key page, remove it
-                if len(pages_to_keep) < len(pdf_doc):
+                if 0 < len(pages_to_keep) < len(pdf_doc):
                     new_pdf = fitz.open()
                     for i in pages_to_keep:
                         new_pdf.insert_pdf(pdf_doc, from_page=i, to_page=i)

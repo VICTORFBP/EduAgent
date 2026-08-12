@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,8 +50,15 @@ export default function LoginPage() {
       <Card className="glass-card border-white/10">
         <CardHeader className="text-center pb-2 pt-8">
           {/* Logo */}
-          <div className="mx-auto mb-4 flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary animate-pulse-glow">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="mx-auto mb-4 relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-primary/20 border border-border/40">
+            <Image
+              src="/logo.png"
+              alt="EduAgent Logo"
+              width={80}
+              height={80}
+              className="w-full h-full object-cover"
+              priority
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">EduAgent</h1>
           <p className="text-sm text-muted-foreground mt-1">
