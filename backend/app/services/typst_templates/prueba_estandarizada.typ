@@ -9,7 +9,7 @@
 // Exporta adicionalmente:
 //   conf-prueba, hoja-respuestas, conf-clave-docente
 //
-#import "@preview/mitex:0.2.4": *
+#import "@preview/mitex:0.2.6": *
 
 // ─── Estado global de color principal ────────────────────────────────────────
 #let color-principal = state("cp", rgb("#1e40af"))
