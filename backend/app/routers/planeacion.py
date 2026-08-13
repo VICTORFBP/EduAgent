@@ -424,7 +424,8 @@ async def get_prueba_estandarizada_pdf(
             headers={
                 "Content-Disposition": (
                     f"inline; filename=prueba_grado_{grado}_{suffix}.pdf"
-                )
+                ),
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
             },
         )
     except Exception as e:
