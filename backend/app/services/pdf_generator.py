@@ -920,7 +920,7 @@ class PdfGeneratorService:
             instr_arg = f"[{instrucciones_typst}]"
 
         doc = (
-            f'#import "@preview/mitex:0.2.4": *\n'
+            f'#import "@preview/mitex:0.2.6": *\n'
             f'#import "{self._TEMPLATE_IMPORT}": conf, recuadro, fragmento-lectura, '
             f'lineas-respuesta, grilla, opcion, seccion-clave, bloque-instrucciones, '
             f'dibujo, tabla-formato, caja-respuesta, verdadero-falso, '
@@ -1034,7 +1034,7 @@ class PdfGeneratorService:
                 clave_arg = self._clave_to_typst(clave_raw)
                 
             return (
-                f'#import "@preview/mitex:0.2.4": *\n'
+                f'#import "@preview/mitex:0.2.6": *\n'
                 f'#import "{self._PRUEBA_TEMPLATE_IMPORT}": conf-clave-docente\n\n'
                 f'#show: doc => conf-clave-docente(\n'
                 f'  titulo: "{_escape_str_arg(titulo_raw)}",\n'
@@ -1049,7 +1049,7 @@ class PdfGeneratorService:
 
         # Standard student copy
         doc = (
-            f'#import "@preview/mitex:0.2.4": *\n'
+            f'#import "@preview/mitex:0.2.6": *\n'
             f'#import "{self._PRUEBA_TEMPLATE_IMPORT}": '
             f'conf-prueba, hoja-respuestas, recuadro, fragmento-lectura, '
             f'opcion, tabla-formato, bloque-instrucciones\n'
